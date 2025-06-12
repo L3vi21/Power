@@ -1,5 +1,6 @@
 import struct
 import csv
+import pandas as pd
 from pathlib import Path
 from datetime import datetime
 from pyModbusTCP.client import ModbusClient
@@ -7,6 +8,8 @@ from pyModbusTCP.client import ModbusClient
 script_dir = Path(__file__).parent
 csv_path = script_dir / "ips.csv"
 output_csv = script_dir / "modbus_data.csv"
+excel_path = script_dir / 'PSHD_MASTER_REGISTER_LIST_current-4.xlsx'
+sheet_name = "A"
 
 #Takes the string of register names and creates a list of int versions of them
 def register_parser(registers_str):
@@ -66,10 +69,15 @@ with open(csv_path, 'r') as csv_file:
         for reg_start in registers:
             print(f"Attempting to read from register {reg_start} (count={count})")
             regs = client.read_holding_registers(reg_start-1, 2)
-
+            
+            #Makes sure that the data being stored is a float32 made up of two 16 bit register
             if regs and len(regs) == 2:
                 float_value = struct.unpack('>f', struct.pack('>HH', regs[1], regs[0]))[0]
                 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+                df = pd.read_excel(excel_path, sheet_name= sheet_name, skiprows= 6, usecols = ['Modbus Register Name', 'Modbus\n Register'])
+                
+
                 data_row = [timestamp, description, ip, slave_id, 1165, float_value]
                 header = ["Timestamp", "Description", "IP", "Slave", "Register", "Value"]
                 append_to_csv("metered_data_" + str(), data_row, header)
