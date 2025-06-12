@@ -12,7 +12,7 @@ output_csv = script_dir / "modbus_data.csv"
 def register_parser(registers_str):
     return[int(reg.strip()) for reg in registers_str.split(',') if reg.strip()]
 
-#Creates necessary csv file if DNE, and appends any necessary data to file
+#Creates necessary csv file if DNE, and appends any necessary data or headers to file
 def append_to_csv(filename, data, header):
     file_exists = Path(filename).exists()
 
@@ -47,32 +47,34 @@ with open(csv_path, 'r') as csv_file:
         client.open()
         print("Client open:", client.is_open)
 
-        regs = client.read_holding_registers(1165-1,2)
+        #Example of accessing the frequency register, is able to get the proper registers
+        #Able to convert the data and store it as a float into a csv file with a proper header as well
 
-        if regs and len(regs) == 2:
-            float_value = struct.unpack('>f', struct.pack('>HH', regs[1], regs[0]))[0]
-            print("Dent Instruments float value:", float_value)
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            data_row = [timestamp, description, ip, slave_id, 1165, float_value]
-            header = ["Timestamp", "Description", "IP", "Slave", "Register", "Value"]
-            append_to_csv(output_csv, data_row, header)
+        #regs = client.read_holding_registers(1165-1,2)
 
-        #for reg_start in registers:
-        #    print(f"Attempting to read from register {reg_start} (count={count})")
-        #    regs = client.read_holding_registers(reg_start-1, 2)
-        #    print(f"Single register read at {reg_start}: {regs}")
-        #    
-        #    if regs and len(regs) == 2:
-        #        byte_data = struct.pack('>HH', regs[0], regs[1])
-        #        float_value = struct.unpack('>f', byte_data)[0]
-        #        print(f"Float value: {float_value}")
-        #    else:    
-        #        print("Read Failed")
-        #
-        #    print(f"Read result for {reg_start}: {regs}")
-        #
-        #    if regs:
-        #        print(f"  Registers {reg_start} - {reg_start+count-1}: {regs}")
+        #if regs and len(regs) == 2:
+        #    float_value = struct.unpack('>f', struct.pack('>HH', regs[1], regs[0]))[0]
+        #    print("Dent Instruments float value:", float_value)
+        #    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        #    data_row = [timestamp, description, ip, slave_id, 1165, float_value]
+        #    header = ["Timestamp", "Description", "IP", "Slave", "Register", "Value"]
+        #    append_to_csv(output_csv, data_row, header)
+
+        #Accessing multiple registers and store them into their own csv files top then be able to graph
+
+
+        for reg_start in registers:
+            print(f"Attempting to read from register {reg_start} (count={count})")
+            regs = client.read_holding_registers(reg_start-1, 2)
+
+            if regs and len(regs) == 2:
+                float_value = struct.unpack('>f', struct.pack('>HH', regs[1], regs[0]))[0]
+                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                data_row = [timestamp, description, ip, slave_id, 1165, float_value]
+                header = ["Timestamp", "Description", "IP", "Slave", "Register", "Value"]
+                append_to_csv("metered_data_" + str(), data_row, header)
+            else:    
+                print("Read Failed")
 
 
 
