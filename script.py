@@ -11,6 +11,9 @@ csv_path = script_dir / "ips.csv"
 excel_path = script_dir / 'PSHD_MASTER_REGISTER_LIST_current-4.xlsx'
 sheet_name = "A"
 
+df_check = pd.read_excel(excel_path, sheet_name=sheet_name, nrows=10, skiprows= 7)
+print(df_check.columns)
+
 #Takes the string of register names and creates a list of int versions of them
 def register_parser(registers_str):
     return[int(reg.strip()) for reg in registers_str.split(',') if reg.strip()]
@@ -27,15 +30,20 @@ def append_to_csv(filename, data, header):
 
 #Section of code bellow creates a register name map so in order to pull names of registers
 
-df_check = pd.read_excel(excel_path, sheet_name=sheet_name, nrows=10)
-print(df_check.columns)
-
 #Reads specified columns of the excel sheet, specifically the register name
-df = pd.read_excel(excel_path, sheet_name= sheet_name, skiprows= 6, usecols = ['Modbus Register Name', 'Modbus Register'])
+df = pd.read_excel(excel_path, sheet_name= sheet_name, skiprows= 7, header= 0, usecols = ['Modbus Register Name', 'Modbus\n Register'], engine= 'openpyxl')
+#print(df.columns.tolist())
+
 #Removes any missing values
-df = df.dropna(subset = ['Modbus Register Name', 'Modbus Register'])
+df = df.dropna(subset = ['Modbus Register Name', 'Modbus\n Register'])
 #Builds the map of all the register names
-register_name_map = {int(row['Modbus Register']): row['Modbus Register Name'] for _, row in df.iterrows()}
+register_name_map = {}
+
+for _, row in df.iterrows():
+    reg_value= row['Modbus\n Register']
+    register_name_map[reg_value] = row['Modbus Register Name']
+
+#register_name_map = {int(row['Modbus\n Register']): row['Modbus Register Name'] for _, row in df.iterrows()}
 
 with open(csv_path, 'r') as csv_file:
     reader = csv.DictReader(csv_file)
