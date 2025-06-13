@@ -7,7 +7,7 @@ from pyModbusTCP.client import ModbusClient
 
 script_dir = Path(__file__).parent
 csv_path = script_dir / "ips.csv"
-output_csv = script_dir / "modbus_data.csv"
+#Path to the DentInstruments register list
 excel_path = script_dir / 'PSHD_MASTER_REGISTER_LIST_current-4.xlsx'
 sheet_name = "A"
 
@@ -24,6 +24,18 @@ def append_to_csv(filename, data, header):
         if not file_exists and header:
             writer.writerow(header)
         writer.writerow(data)
+
+#Section of code bellow creates a register name map so in order to pull names of registers
+
+df_check = pd.read_excel(excel_path, sheet_name=sheet_name, nrows=10)
+print(df_check.columns)
+
+#Reads specified columns of the excel sheet, specifically the register name
+df = pd.read_excel(excel_path, sheet_name= sheet_name, skiprows= 6, usecols = ['Modbus Register Name', 'Modbus Register'])
+#Removes any missing values
+df = df.dropna(subset = ['Modbus Register Name', 'Modbus Register'])
+#Builds the map of all the register names
+register_name_map = {int(row['Modbus Register']): row['Modbus Register Name'] for _, row in df.iterrows()}
 
 with open(csv_path, 'r') as csv_file:
     reader = csv.DictReader(csv_file)
@@ -63,26 +75,39 @@ with open(csv_path, 'r') as csv_file:
         #    header = ["Timestamp", "Description", "IP", "Slave", "Register", "Value"]
         #    append_to_csv(output_csv, data_row, header)
 
+
+
         #Accessing multiple registers and store them into their own csv files top then be able to graph
 
-
         for reg_start in registers:
-            print(f"Attempting to read from register {reg_start} (count={count})")
+            reg_name = register_name_map.get(reg_start, f"Register{reg_start}")
+            print(f"Attempting to read from register {reg_name} (Reg_value={reg_start})")
+
             regs = client.read_holding_registers(reg_start-1, 2)
             
             #Makes sure that the data being stored is a float32 made up of two 16 bit register
             if regs and len(regs) == 2:
-                float_value = struct.unpack('>f', struct.pack('>HH', regs[1], regs[0]))[0]
+                try:
+                    float_value = struct.unpack('>f', struct.pack('>HH', regs[1], regs[0]))[0]
+                
+                except Exception as e:
+                    print(f"Decode error: {str(e)}")
+                    continue
+
                 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-                df = pd.read_excel(excel_path, sheet_name= sheet_name, skiprows= 6, usecols = ['Modbus Register Name', 'Modbus\n Register'])
-                
+                safe_reg_name = reg_name.replace(" ", "_").replace("/","-")
+                output_file = script_dir / f"metered_data{safe_reg_name}.csv"
 
-                data_row = [timestamp, description, ip, slave_id, 1165, float_value]
-                header = ["Timestamp", "Description", "IP", "Slave", "Register", "Value"]
-                append_to_csv("metered_data_" + str(), data_row, header)
+                data_row = [timestamp, description, ip, slave_id, reg_start, reg_name, float_value]
+                header = ["Timestamp", "Description", "IP", "Slave", "Register", "Register_Name", "Value"]
+
+                append_to_csv(f"metered_data_{safe_reg_name}.csv", data_row, header)
             else:    
-                print("Read Failed")
+                print(f"Read Failed for {reg_name} ({reg_start})")
+                error_path = script_dir / "errors.csv"
+                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                append_to_csv(error_path, [timestamp, ip, reg_start, "Read Failed"], ["Timestamp", "IP", "Register", "Error"])
 
 
 
