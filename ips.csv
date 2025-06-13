@@ -16,8 +16,9 @@ ip,slave,description,count,start_addr
 10.129.7.16,15,"PM Drop Bottom",2,"1165,1167"
 10.129.7.18,16,"PM A3 Substation",2,"1165,1167"
 10.129.7.7,17,"PM Autoclave 3",2,"1165,1167"
-10.129.7.9,18,"PM Autoclave 4",2,"1165,1167"
+
 10.129.7.6,19,"PM Autoclave 1",2,"1165,1167"
 10.129.7.15,20,"PM Autoclave 10",2,"1165,1167"
 10.129.7.11,22,"PM Autoclave 6",2,"1165,1167"
 10.129.7.14,23,"PM Autoclave 9",2,"1165,1167"
+10.129.7.9,18,"PM Autoclave 4",2,"1165,1167"
