@@ -12,35 +12,41 @@ import matplotlib.pyplot as plt
 current_canvas= None
 #Function defintions:
 
+def clear_graphs():
+    for widget in root.winfo_children():
+        if isinstance(widget, FigureCanvasTkAgg):
+            widget.get_tk_widget().destroy()
+
 #Graphs the desired values against the datetime axis
 def show_graph():
     global current_canvas
     selected_option = combobox.get()
+    
     if not selected_option:
         return
     
-    if current_canvas:
-        current_canvas.get_tk_widget().destroy()
-        current_canvas= None
+#Commenting this out in order to allow multiple graphs to be viewed at once
+    #if current_canvas:
+        #current_canvas.get_tk_widget().destroy()
+        #current_canvas= None
 
-    if "Power Factor(Sum + Per Channel)" in selected_option:
-        csv_name = "metered_data_Power_Factor_(MSW)"
-        file_path = script_dir / csv_name
+    csv_name= selected_option
+    file_path= script_dir / csv_name
 
-        if file_path.exists():
-            df = pd.read_csv(file_path)
-            timestamps = pd.to_datetime(df['Timestamp'])
-            values= df['Value']
-            fig, ax = plt.subplots(figsize=(8, 4))
-            ax.plot(timestamps, values, label=selected_option)
-            ax.set_title(selected_option)
-            ax.set_xlabel("Timestamp")
-            ax.set_ylabel("Value")
-            ax.legend()
-            ax.grid(True)
-            current_canvas = FigureCanvasTkAgg(fig, master=root)
-            current_canvas.draw()
-            current_canvas.get_tk_widget().pack(side='bottom', fill='both', expand=True)
+    if file_path.exists():
+        df = pd.read_csv(file_path)
+        timestamps = pd.to_datetime(df['Timestamp'])
+        values= df['Value']
+        fig, ax = plt.subplots(figsize=(6, 3))
+        ax.plot(timestamps, values, label=selected_option)
+        ax.set_title(selected_option)
+        ax.set_xlabel("Timestamp")
+        ax.set_ylabel("Value")
+        ax.legend()
+        ax.grid(True)
+        current_canvas = FigureCanvasTkAgg(fig, master= graph_frame)
+        current_canvas.draw()
+        current_canvas.get_tk_widget().pack(side='bottom', fill='both', expand=True, pady= 10)
 
 #Takes the string of register names and creates a list of int versions of them
 def register_parser(registers_str):
@@ -58,17 +64,27 @@ def append_to_csv(filename, data, header):
 
 #Tkinter main application window for frontend
 root = ttk.Window(themename="darkly")
+root.geometry("1920x1080")
+
+#Frame for the graphs tp live in instead of the entire window
+graph_frame= ttk.Frame(root, padding= "10 10 10 10")
+graph_frame.pack(fill='both', expand=True)
+
 #Button to display the graph
-show_button = ttk.Button(root, text= "Graph", bootstyle= (SUCCESS, OUTLINE))
+show_button= ttk.Button(root, text= "Graph", bootstyle= (SUCCESS, OUTLINE))
 show_button.pack(side= LEFT, padx= 5, pady= 10)
 show_button.config(command=show_graph)
-#Drop down item to list all the possible graphs
-combobox= ttk.Combobox(root)
-combobox.pack(side = 'top', fill= 'x', padx= 5, pady= 10)
 
-for option in ['metered_data_Apparent_PF_CH1_(MSW).csv', 'metered_data_Apparent_PF_CH2_(MSW).csv', 
-               'metered_data_Apparent_PF_CH3_(MSW).csv', 'metered_data_Apparent_PF_Avg_Element_(MSW).csv']:
-    combobox.insert('end', option)
+#Clear all button, in order to clear window
+clear_button = ttk.Button(root, text="Clear Graphs", bootstyle=(DANGER, OUTLINE), command=clear_graphs)
+clear_button.pack(side=LEFT, padx=5, pady=10)
+
+#Drop down item to list all the possible graphs
+options = ['metered_data_Apparent_PF_CH1_(MSW).csv', 'metered_data_Apparent_PF_CH2_(MSW).csv', 
+           'metered_data_Apparent_PF_CH3_(MSW).csv', 'metered_data_Apparent_PF_Avg_Element_(MSW).csv']
+
+combobox= ttk.Combobox(root, bootstyle= "success", values= options)
+combobox.pack(side = 'top', fill= 'x', padx= 5, pady= 10)
 
 script_dir = Path(__file__).parent
 csv_path = script_dir / "ips.csv"
@@ -78,7 +94,6 @@ sheet_name = "A"
 
 #df_check = pd.read_excel(excel_path, sheet_name=sheet_name, nrows=10, skiprows= 7)
 #print(df_check.columns)
-
 
 #Section of code bellow creates a register name map so in order to pull names of registers
 
@@ -134,8 +149,6 @@ with open(csv_path, 'r') as csv_file:
         #    data_row = [timestamp, description, ip, slave_id, 1165, float_value]
         #    header = ["Timestamp", "Description", "IP", "Slave", "Register", "Value"]
         #    append_to_csv(output_csv, data_row, header)
-
-
 
         #Accessing multiple registers and store them into their own csv files top then be able to graph
 
