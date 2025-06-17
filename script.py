@@ -4,15 +4,37 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 from pyModbusTCP.client import ModbusClient
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.pyplot as plt
 
-script_dir = Path(__file__).parent
-csv_path = script_dir / "ips.csv"
-#Path to the DentInstruments register list
-excel_path = script_dir / 'PSHD_MASTER_REGISTER_LIST_current-4.xlsx'
-sheet_name = "A"
+#Function defintions:
 
-df_check = pd.read_excel(excel_path, sheet_name=sheet_name, nrows=10, skiprows= 7)
-print(df_check.columns)
+#Graphs the desired values against the datetime axis
+def show_graph():
+    selected_option = combobox.get()
+    if not selected_option:
+        return
+    
+    if "Power Factor(Sum + Per Channel)" in selected_option:
+        csv_name = "metered_data_Power_Factor_(MSW)"
+        file_path = script_dir / csv_name
+
+        if file_path.exists():
+            df = pd.read_csv(file_path)
+            timestamps = pd.to_datetime(df['Timestamp'])
+            values= df['Value']
+            fig, ax = plt.subplots(figsize=(8, 4))
+            ax.plot(timestamps, values, label=selected_option)
+            ax.set_title(selected_option)
+            ax.set_xlabel("Timestamp")
+            ax.set_ylabel("Value")
+            ax.legend()
+            ax.grid(True)
+            canvas = FigureCanvasTkAgg(fig, master=root)
+            canvas.draw()
+            canvas.get_tk_widget().pack(side='bottom', fill='both', expand=True)
 
 #Takes the string of register names and creates a list of int versions of them
 def register_parser(registers_str):
@@ -28,6 +50,28 @@ def append_to_csv(filename, data, header):
             writer.writerow(header)
         writer.writerow(data)
 
+#Tkinter main application window for frontend
+root = ttk.Window(themename="darkly")
+#Button to display the graph
+show_button = ttk.Button(root, text= "Graph", bootstyle= (SUCCESS, OUTLINE))
+show_button.pack(side= LEFT, padx= 5, pady= 10)
+show_button.config(command=show_graph)
+#Drop down item to list all the possible graphs
+combobox= ttk.Combobox(root)
+
+for option in ['Power Factor(Sum + Per Channel)', 'option 2', 'option 3']:
+    combobox.insert('end', option)
+
+script_dir = Path(__file__).parent
+csv_path = script_dir / "ips.csv"
+#Path to the DentInstruments register list
+excel_path = script_dir / 'PSHD_MASTER_REGISTER_LIST_current-4.xlsx'
+sheet_name = "A"
+
+#df_check = pd.read_excel(excel_path, sheet_name=sheet_name, nrows=10, skiprows= 7)
+#print(df_check.columns)
+
+
 #Section of code bellow creates a register name map so in order to pull names of registers
 
 #Reads specified columns of the excel sheet, specifically the register name
@@ -36,9 +80,9 @@ df = pd.read_excel(excel_path, sheet_name= sheet_name, skiprows= 7, header= 0, u
 
 #Removes any missing values
 df = df.dropna(subset = ['Modbus Register Name', 'Modbus\n Register'])
+
 #Builds the map of all the register names
 register_name_map = {}
-
 for _, row in df.iterrows():
     reg_value= row['Modbus\n Register']
     register_name_map[reg_value] = row['Modbus Register Name']
