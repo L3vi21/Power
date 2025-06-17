@@ -9,14 +9,20 @@ from ttkbootstrap.constants import *
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 
+current_canvas= None
 #Function defintions:
 
 #Graphs the desired values against the datetime axis
 def show_graph():
+    global current_canvas
     selected_option = combobox.get()
     if not selected_option:
         return
     
+    if current_canvas:
+        current_canvas.get_tk_widget().destroy()
+        current_canvas= None
+
     if "Power Factor(Sum + Per Channel)" in selected_option:
         csv_name = "metered_data_Power_Factor_(MSW)"
         file_path = script_dir / csv_name
@@ -32,9 +38,9 @@ def show_graph():
             ax.set_ylabel("Value")
             ax.legend()
             ax.grid(True)
-            canvas = FigureCanvasTkAgg(fig, master=root)
-            canvas.draw()
-            canvas.get_tk_widget().pack(side='bottom', fill='both', expand=True)
+            current_canvas = FigureCanvasTkAgg(fig, master=root)
+            current_canvas.draw()
+            current_canvas.get_tk_widget().pack(side='bottom', fill='both', expand=True)
 
 #Takes the string of register names and creates a list of int versions of them
 def register_parser(registers_str):
@@ -58,8 +64,10 @@ show_button.pack(side= LEFT, padx= 5, pady= 10)
 show_button.config(command=show_graph)
 #Drop down item to list all the possible graphs
 combobox= ttk.Combobox(root)
+combobox.pack(side = 'top', fill= 'x', padx= 5, pady= 10)
 
-for option in ['Power Factor(Sum + Per Channel)', 'option 2', 'option 3']:
+for option in ['metered_data_Apparent_PF_CH1_(MSW).csv', 'metered_data_Apparent_PF_CH2_(MSW).csv', 
+               'metered_data_Apparent_PF_CH3_(MSW).csv', 'metered_data_Apparent_PF_Avg_Element_(MSW).csv']:
     combobox.insert('end', option)
 
 script_dir = Path(__file__).parent
@@ -161,6 +169,7 @@ with open(csv_path, 'r') as csv_file:
                 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 append_to_csv(error_path, [timestamp, ip, reg_start, "Read Failed"], ["Timestamp", "IP", "Register", "Error"])
 
+root.mainloop()
 
 
 
