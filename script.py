@@ -1,5 +1,7 @@
 import struct
 import csv
+import sys
+import time
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
@@ -9,13 +11,22 @@ from ttkbootstrap.constants import *
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 
+#Creates the "Canvas" for the UI ()
 current_canvas= None
+
+#Number of samples taken per meter
+num_samples= 10
+#Delay in seconds between each data read
+sample_delay= 1
 #Function defintions:
 
+#Creates the functionality for the "Clear Graph" button
 def clear_graphs():
-    for widget in root.winfo_children():
+    for widget in graph_frame.winfo_children():
         if isinstance(widget, FigureCanvasTkAgg):
             widget.get_tk_widget().destroy()
+        else:
+            widget.destroy()
 
 #Graphs the desired values against the datetime axis
 def show_graph():
@@ -37,16 +48,21 @@ def show_graph():
         df = pd.read_csv(file_path)
         timestamps = pd.to_datetime(df['Timestamp'])
         values= df['Value']
-        fig, ax = plt.subplots(figsize=(6, 3))
+        fig, ax = plt.subplots(figsize=(8, 5))
         ax.plot(timestamps, values, label=selected_option)
         ax.set_title(selected_option)
         ax.set_xlabel("Timestamp")
         ax.set_ylabel("Value")
         ax.legend()
         ax.grid(True)
+        fig.tight_layout()
+
         current_canvas = FigureCanvasTkAgg(fig, master= graph_frame)
         current_canvas.draw()
-        current_canvas.get_tk_widget().pack(side='bottom', fill='both', expand=True, pady= 10)
+        current_canvas.get_tk_widget().pack(side='top', fill='x', expand= False, pady= 10)
+
+def quit_program():
+    sys.exit(0)
 
 #Takes the string of register names and creates a list of int versions of them
 def register_parser(registers_str):
@@ -76,16 +92,20 @@ show_button.pack(side= LEFT, padx= 5, pady= 10)
 show_button.config(command=show_graph)
 
 #Clear all button, in order to clear window
-clear_button = ttk.Button(root, text="Clear Graphs", bootstyle=(DANGER, OUTLINE), command=clear_graphs)
-clear_button.pack(side=LEFT, padx=5, pady=10)
+clear_button= ttk.Button(root, text="Clear Graphs", bootstyle=(DANGER, OUTLINE), command=clear_graphs)
+clear_button.pack(side=LEFT, padx= 5, pady= 10)
+
+#Quit Button in order to shut down the program
+quit_button= ttk.Button(root, text= "Quit", bootstyle=(LIGHT,OUTLINE), command= quit_program)
+quit_button.pack(side= LEFT, padx= 5, pady= 10)
 
 #Drop down item to list all the possible graphs
 options = ['metered_data_Apparent_PF_CH1_(MSW).csv', 'metered_data_Apparent_PF_CH2_(MSW).csv', 
            'metered_data_Apparent_PF_CH3_(MSW).csv', 'metered_data_Apparent_PF_Avg_Element_(MSW).csv']
-
 combobox= ttk.Combobox(root, bootstyle= "success", values= options)
 combobox.pack(side = 'top', fill= 'x', padx= 5, pady= 10)
 
+#Finds the parent file path
 script_dir = Path(__file__).parent
 csv_path = script_dir / "ips.csv"
 #Path to the DentInstruments register list
@@ -152,35 +172,38 @@ with open(csv_path, 'r') as csv_file:
 
         #Accessing multiple registers and store them into their own csv files top then be able to graph
 
-        for reg_start in registers:
-            reg_name = register_name_map.get(reg_start, f"Register{reg_start}")
-            print(f"Attempting to read from register {reg_name} (Reg_value={reg_start})")
+        for _ in range(num_samples):
+            for reg_start in registers:
+                reg_name = register_name_map.get(reg_start, f"Register{reg_start}")
+                print(f"Attempting to read from register {reg_name} (Reg_value={reg_start})")
 
-            regs = client.read_holding_registers(reg_start-1, 2)
+                regs = client.read_holding_registers(reg_start-1, 2)
             
-            #Makes sure that the data being stored is a float32 made up of two 16 bit register
-            if regs and len(regs) == 2:
-                try:
-                    float_value = struct.unpack('>f', struct.pack('>HH', regs[1], regs[0]))[0]
+                #Makes sure that the data being stored is a float32 made up of two 16 bit register
+                if regs and len(regs) == 2:
+                    try:
+                        float_value = struct.unpack('>f', struct.pack('>HH', regs[1], regs[0]))[0]
                 
-                except Exception as e:
-                    print(f"Decode error: {str(e)}")
-                    continue
+                    except Exception as e:
+                        print(f"Decode error: {str(e)}")
+                        continue
 
-                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-                safe_reg_name = reg_name.replace(" ", "_").replace("/","-")
-                output_file = script_dir / f"metered_data{safe_reg_name}.csv"
+                    safe_reg_name = reg_name.replace(" ", "_").replace("/","-")
+                    output_file = script_dir / f"metered_data{safe_reg_name}.csv"
 
-                data_row = [timestamp, description, ip, slave_id, reg_start, reg_name, float_value]
-                header = ["Timestamp", "Description", "IP", "Slave", "Register", "Register_Name", "Value"]
+                    data_row = [timestamp, description, ip, slave_id, reg_start, reg_name, float_value]
+                    header = ["Timestamp", "Description", "IP", "Slave", "Register", "Register_Name", "Value"]
 
-                append_to_csv(f"metered_data_{safe_reg_name}.csv", data_row, header)
-            else:    
-                print(f"Read Failed for {reg_name} ({reg_start})")
-                error_path = script_dir / "errors.csv"
-                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                append_to_csv(error_path, [timestamp, ip, reg_start, "Read Failed"], ["Timestamp", "IP", "Register", "Error"])
+                    append_to_csv(f"metered_data_{safe_reg_name}.csv", data_row, header)
+                else:    
+                    print(f"Read Failed for {reg_name} ({reg_start})")
+                    error_path = script_dir / "errors.csv"
+                    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    append_to_csv(error_path, [timestamp, ip, reg_start, "Read Failed"], ["Timestamp", "IP", "Register", "Error"])
+            #Adds a delay between consecutive reads
+            time.sleep(sample_delay)
 
 root.mainloop()
 
