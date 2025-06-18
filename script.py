@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 current_canvas= None
 
 #Number of samples taken per meter
-num_samples= 10
+num_samples= 3
 #Delay in seconds between each data read
 sample_delay= 1
 #Function defintions:
@@ -32,34 +32,44 @@ def clear_graphs():
 def show_graph():
     global current_canvas
     selected_option = combobox.get()
+    selected_meter= meter_combobox.get()
     
-    if not selected_option:
+    if not selected_option or not meter_combobox:
         return
-    
-#Commenting this out in order to allow multiple graphs to be viewed at once
-    #if current_canvas:
-        #current_canvas.get_tk_widget().destroy()
-        #current_canvas= None
 
     csv_name= selected_option
     file_path= script_dir / csv_name
 
     if file_path.exists():
-        df = pd.read_csv(file_path)
+        df = df[df['Description'] == selected_meter].tail(num_samples)
+        if df.empty:
+            print(f"No data for meter '{selected_meter}' in file '{csv_name}'")
+            return
+        
+        print(df)
         timestamps = pd.to_datetime(df['Timestamp'])
         values= df['Value']
-        fig, ax = plt.subplots(figsize=(8, 5))
-        ax.plot(timestamps, values, label=selected_option)
-        ax.set_title(selected_option)
-        ax.set_xlabel("Timestamp")
-        ax.set_ylabel("Value")
-        ax.legend()
-        ax.grid(True)
-        fig.tight_layout()
 
-        current_canvas = FigureCanvasTkAgg(fig, master= graph_frame)
-        current_canvas.draw()
-        current_canvas.get_tk_widget().pack(side='top', fill='x', expand= False, pady= 10)
+        if overlay_mode.get() and current_canvas:
+            fig= current_canvas.figure
+            ax= fig.axes[0]
+            ax.plot(timestamps, values, label= selected_option)
+            ax.legend()
+            current_canvas.draw()
+        else:
+            fig, ax = plt.subplots(figsize=(8, 5))
+            ax.plot(timestamps, values, label=selected_option)
+            ax.set_title(f"{selected_option} - {selected_meter}")
+            ax.set_xlabel("Timestamp")
+            ax.set_ylabel("Value")
+            ax.legend()
+            ax.grid(True)
+            fig.tight_layout()
+
+            new_canvas= FigureCanvasTkAgg(fig, master= graph_frame)
+            new_canvas.draw()
+            new_canvas.get_tk_widget().pack(side='top', fill='x', expand= False, pady= 10)
+            current_canvas= new_canvas
 
 def quit_program():
     sys.exit(0)
@@ -81,6 +91,8 @@ def append_to_csv(filename, data, header):
 #Tkinter main application window for frontend
 root = ttk.Window(themename="darkly")
 root.geometry("1920x1080")
+#Controls whether multiple sets of data go on the same graph
+overlay_mode = ttk.BooleanVar(value=False)
 
 #Frame for the graphs tp live in instead of the entire window
 graph_frame= ttk.Frame(root, padding= "10 10 10 10")
@@ -99,11 +111,27 @@ clear_button.pack(side=LEFT, padx= 5, pady= 10)
 quit_button= ttk.Button(root, text= "Quit", bootstyle=(LIGHT,OUTLINE), command= quit_program)
 quit_button.pack(side= LEFT, padx= 5, pady= 10)
 
-#Drop down item to list all the possible graphs
-options = ['metered_data_Apparent_PF_CH1_(MSW).csv', 'metered_data_Apparent_PF_CH2_(MSW).csv', 
+#Button controlling controlling whether multiple data sets will be printed to the same graph
+overlay_check = ttk.Checkbutton(root, text="Append to Graph", variable=overlay_mode, bootstyle="info")
+overlay_check.pack(side=LEFT, padx=5, pady=10)
+
+#Drop down item to list all the possible data sets to graph
+options= ['metered_data_Apparent_PF_CH1_(MSW).csv', 'metered_data_Apparent_PF_CH2_(MSW).csv', 
            'metered_data_Apparent_PF_CH3_(MSW).csv', 'metered_data_Apparent_PF_Avg_Element_(MSW).csv']
 combobox= ttk.Combobox(root, bootstyle= "success", values= options)
+combobox.set('Data Set Selection')
 combobox.pack(side = 'top', fill= 'x', padx= 5, pady= 10)
+
+#Drop down item to list all the possible meters to pull data from
+meter_names= ['PM C4 Substation (OFFLINE)','PM Autoclave 7 (OFFLINE)','PM C1L1 Substation',
+              'PM C1L2 Substation','PM C2P Substation','PM Autoclave 5','PM Autoclave 2',
+              'PM Autoclave 8','PM C2L Substation','PM C1A Substation','PM B2 Substation',
+              'PM B3 Substation','PM A1 Substation','PM Drop Bottom','PM A3 Substation',
+              'PM Autoclave 3','PM Autoclave 1','PM Autoclave 10','PM Autoclave 6',
+              'PM Autoclave 9','PM Autoclave 4']
+meter_combobox= ttk.Combobox(root, bootstyle= SUCCESS, values= meter_names, textvariable= 'Meter Selection')
+meter_combobox.set('Meter Selection')
+meter_combobox.pack(side= 'top', fill= 'x', padx= 5, pady= 10)
 
 #Finds the parent file path
 script_dir = Path(__file__).parent
@@ -116,6 +144,7 @@ sheet_name = "A"
 #print(df_check.columns)
 
 #Section of code bellow creates a register name map so in order to pull names of registers
+#-----------------------------------------------------------------------------------------
 
 #Reads specified columns of the excel sheet, specifically the register name
 df = pd.read_excel(excel_path, sheet_name= sheet_name, skiprows= 7, header= 0, usecols = ['Modbus Register Name', 'Modbus\n Register'], engine= 'openpyxl')
