@@ -2,6 +2,7 @@ import struct
 import csv
 import sys
 import time
+import threading
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
@@ -15,7 +16,7 @@ import matplotlib.pyplot as plt
 current_canvas= None
 
 #Number of samples taken per meter
-num_samples= 3
+num_samples= 5
 #Delay in seconds between each data read
 sample_delay= 1
 #Function defintions:
@@ -24,7 +25,7 @@ sample_delay= 1
 def clear_graphs():
     for widget in graph_frame.winfo_children():
         if isinstance(widget, FigureCanvasTkAgg):
-            widget.get_tk_widget().destroy()
+            widget.get_tk_widget().destroy()            
         else:
             widget.destroy()
 
@@ -37,17 +38,23 @@ def show_graph():
     if not selected_option or not meter_combobox:
         return
 
+    if not overlay_mode.get():
+        clear_graphs()
+        current_canvas = None
+
     csv_name= selected_option
     file_path= script_dir / csv_name
 
     if file_path.exists():
+        df = pd.read_csv(file_path)
         df = df[df['Description'] == selected_meter].tail(num_samples)
+        
         if df.empty:
             print(f"No data for meter '{selected_meter}' in file '{csv_name}'")
             return
         
         print(df)
-        timestamps = pd.to_datetime(df['Timestamp'])
+        timestamps = pd.to_datetime(df['Time'])
         values= df['Value']
 
         if overlay_mode.get() and current_canvas:
@@ -211,19 +218,23 @@ with open(csv_path, 'r') as csv_file:
                 #Makes sure that the data being stored is a float32 made up of two 16 bit register
                 if regs and len(regs) == 2:
                     try:
+                        # First the data is packed using the little endian format and the data type is an unsigned int
+                        # represented by '>HH'. Then the data is unpacked, making sure to get the msb first then the lsb,
+                        # it is then stored in a tuple, more specifically the first index.
+                        # 
                         float_value = struct.unpack('>f', struct.pack('>HH', regs[1], regs[0]))[0]
+                        time_of_data = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 
                     except Exception as e:
                         print(f"Decode error: {str(e)}")
                         continue
-
-                    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    
 
                     safe_reg_name = reg_name.replace(" ", "_").replace("/","-")
                     output_file = script_dir / f"metered_data{safe_reg_name}.csv"
 
-                    data_row = [timestamp, description, ip, slave_id, reg_start, reg_name, float_value]
-                    header = ["Timestamp", "Description", "IP", "Slave", "Register", "Register_Name", "Value"]
+                    data_row = [time_of_data, description, ip, slave_id, reg_start, reg_name, float_value]
+                    header = ["Time", "Description", "IP", "Slave", "Register", "Register_Name", "Value"]
 
                     append_to_csv(f"metered_data_{safe_reg_name}.csv", data_row, header)
                 else:    
