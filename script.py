@@ -2,7 +2,6 @@ import struct
 import csv
 import sys
 import time
-import threading
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
