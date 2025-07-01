@@ -32,6 +32,16 @@ def register_parser(registers_str):
 def append_to_csv(filename, data, header):
     file_exists = Path(filename).exists()
     with csv_lock:
+        file_exists= Path(filename).exists()
+        write_header= False
+        
+        if file_exists:
+            write_header= True
+        else:
+            # Checks if the file exists but is empty
+            if Path(filename).stat().st_size == 0:
+                write_header= True
+                
         with open(filename, 'a', newline='') as f:
             writer = csv.writer(f)
             if not file_exists and header:
@@ -43,9 +53,6 @@ def process_device(row, register_name_map):
     slave= row['slave'].strip()
     description = row['description'].strip()
     registers = register_parser(row['start_addr'])
-    
-    if not slave:
-        continue
     
     # Convert slave to integer
     slave_id= int(slave)
@@ -112,7 +119,7 @@ def pull_data():
             executor.submit(process_device, row, register_name_map)
 
 # Schedules the data pulling for every 10 minutes
-schedule.every(10).minutes.do(pull_data)
+schedule.every(5).minutes.do(pull_data)
 
 while True:
     schedule.run_pending()
