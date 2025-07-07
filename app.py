@@ -60,7 +60,7 @@ def get_chart_data():
     start_date_str= request.args.get('startDate')
     end_date_str= request.args.get('endDate')
 
-    if equipment and equipment != 'All equipment':
+    if equipment and equipment != 'All Equipment':
         filtered_df= filtered_df[filtered_df['Description'] == equipment]
 
     if register and register != 'All registers':
