@@ -85,10 +85,10 @@ def pull_data():
         register_name_map = {}
         for _, row in df.iterrows():
             reg_value= row['Modbus\n Register']
-            register_name_map[reg_vlaue] = row['Modbus Register Name']
+            register_name_map[reg_value] = row['Modbus Register Name']
     except Exception as e:
         print(f"Read error: {str(e)}")
-        continue
+        pass
     
     try:
         with open(csv_path, 'r') as csv_file:  
@@ -108,18 +108,20 @@ def pull_data():
 
 def archive_old_metered_data_files():
     archive_dir = script_dir / "metered_data"
+
+    #Create the main archive directory if it doesn't exist
     archive_dir.mkdir(exist_ok=True)
+
+    #Create a timestamped subfolder
+    subfolder_name= datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    subfolder_path= archive_dir / subfolder_name
+    subfolder_path.mkdir(exist_ok=True)
 
     for file in script_dir.glob("metered_data_*.csv"):
         try:
-            # Get file modification time
-            mod_time = datetime.fromtimestamp(file.stat().st_mtime)
-            timestamp_str = mod_time.strftime("%Y%m%d_%H%M%S")
-            # New filename format
-            new_name = file.stem + f"_{timestamp_str}.csv"
-            new_path = archive_dir / new_name
-            # Move file
+            new_path= subfolder_path / file.name
             file.rename(new_path)
+
             print(f"Archived old file: {file.name} -> {new_path.name}")
         except Exception as e:
             print(f"Could not archive {file.name}. Error: {e}")
