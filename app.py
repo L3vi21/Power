@@ -1,0 +1,80 @@
+from flask import Flask, jsonify, render_template, request
+import pandas as pd
+import glob
+import os
+from datetime import datetime, timedelta
+
+app= Flask(__name__)
+
+def get_data_from_csvs():
+    file_pattern= "metered_data_*.csv"
+    all_files= glob.glob(file_pattern)
+
+    if not all_files:
+        return pd.DataFrame()
+    
+    df_list= []
+    for file in all_files:
+        try:
+            df= pd.read_csv(file)
+            df_list.append(df)
+        except Exception as e:
+            print(f"Error reading:{file}: {e}")
+
+    if not df_list:
+        print("No data could be loaded from hte found files.")
+        return pd.DataFrame()
+    
+    df = pd.concat(df_list, ignore_index=True)
+
+    df['Timestamp']= pd.to_datetime(df['Timestamp'])
+    df= df.sort_values(by='Timestamp')
+
+    print("Data Loading Complete")
+    return df
+
+main_df= get_data_from_csvs()
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/api/filters')
+def get_filters():
+    if main_df.empty:
+        return jsonify({'equipments': [], 'registers': []})
+    
+    equipments= main_df['Description'].unique().tolist()
+    registers= main_df['Register_Name'].unique().tolist()
+    return jsonify({'equipments': sorted(equipments), 'registers': sorted(registers)})
+
+@app.route('/api/data')
+def get_chart_data():
+    if main_df.empty:
+        return jsonify([])
+
+    filtered_df= main_df.copy()
+
+    equipment= request.args.get('equipment')
+    register= request.args.get('register')
+    start_date_str= request.args.get('startDate')
+    end_date_str= request.args.get('endDate')
+
+    if equipment and equipment != 'All equipment':
+        filtered_df= filtered_df[filtered_df['Description'] == equipment]
+
+    if register and register != 'All registers':
+        filtered_df= filtered_df[filtered_df['Register_Name'] == register]
+
+    if start_date_str:
+        start_date= datetime.strptime(start_date_str, '%Y-%m-%d')
+        filtered_df= filtered_df[filtered_df['Timestamp'] >= start_date]
+
+    if end_date_str:
+        end_date= datetime.strptime(end_date_str, '%Y-%m-%d') + timedelta(days= 1)
+        filtered_df= filtered_df[filtered_df['Timestamp'] < end_date]
+
+    return jsonify(filtered_df.to_dict(orient='records'))
+
+if __name__ == '__main__':
+    app.run(debug=True)

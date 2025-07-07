@@ -110,8 +110,28 @@ def pull_data():
         for row in devices:
             executor.submit(process_device, row, register_name_map)
 
+def archive_old_metered_data_files():
+    archive_dir = script_dir / "metered_data"
+    archive_dir.mkdir(exist_ok=True)
+
+    for file in script_dir.glob("metered_data_*.csv"):
+        # Get file modification time
+        mod_time = datetime.fromtimestamp(file.stat().st_mtime)
+        timestamp_str = mod_time.strftime("%Y%m%d_%H%M%S")
+
+        # New filename format
+        new_name = file.stem + f"_{timestamp_str}.csv"
+        new_path = archive_dir / new_name
+
+        # Move file
+        file.rename(new_path)
+        print(f"Archived old file: {file.name} -> {new_path.name}")
+
+
+archive_old_metered_data_files()
+
 # Schedules the data pulling for every 10 minutes
-schedule.every(2).minutes.do(pull_data)
+schedule.every(10).minutes.do(pull_data)
 
 while True:
     schedule.run_pending()
