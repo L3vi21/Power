@@ -61,7 +61,7 @@ def process_device(row, register_name_map):
             if regs and len(regs) == 2:
                 try:
                     float_value = struct.unpack('>f', struct.pack('>HH', regs[1], regs[0]))[0]
-                    time_of_data = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    time_of_data = datetime.now().strftime('%Y-%m-%d %H:%M:%S %p')
                 except Exception as e:
                     print(f"Decode error: {str(e)}")
                     continue
@@ -74,7 +74,7 @@ def process_device(row, register_name_map):
             else:
                 print(f"Read Failed for {reg_name} ({reg_start})")
                 error_path = script_dir / "errors.csv"
-                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S %p')
                 append_to_csv(error_path, [timestamp, ip, reg_start, "Read Failed"], ["Timestamp", "IP", "Register", "Error"])
     except Exception as e:
         print(f"An error occurred while processing device {description} ({ip}): {e}")

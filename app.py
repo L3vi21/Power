@@ -34,7 +34,7 @@ def get_data_from_csvs():
     
     df = pd.concat(df_list, ignore_index=True)
 
-    df['Timestamp']= pd.to_datetime(df['Timestamp'])
+    df['Timestamp']= pd.to_datetime(df['Timestamp'], errors= 'coerce')
     df= df.sort_values(by='Timestamp')
 
     print("Data Loading Complete")
