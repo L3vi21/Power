@@ -9,10 +9,9 @@ app= Flask(__name__)
 def get_data_from_csvs():
     data_directory= "metered_data"
 
-    if not os.path.exsists(data_directory):
+    if not os.path.exists(data_directory):
         print(f"WARNING: Data directory for {data_directory} not found")
-        os.mkdir(data_directory)
-        continue
+        return pd.DataFrame()
     
     file_pattern = os.path.join(data_directory, '**', '*.csv')
     all_files = glob.glob(file_pattern, recursive=True)
