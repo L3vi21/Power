@@ -51,8 +51,13 @@ def process_device(row, register_name_map):
             reg_name = register_name_map.get(reg_start, f"Register{reg_start}")
             print(f"Attempting to read from register {reg_name} (Reg_value={reg_start})")
 
+            #Register themselves are 0 indexed so in order to access 1199 we must sub 1 for example
             regs= client.read_holding_registers(reg_start - 1, 2)
 
+            #Floats/decimals are stored as 16 bytes which means that one float takes up two 8-byte registers.
+            #With this being said the data is stored in Little Endian format which means that the rightmost byte
+            #represents the most significant bit (MSB) and hence the leftmost byte represents the least significant bit (LSB).
+            #Therefore the program reads right to left when converting from bytes to actual digits.
             if regs and len(regs) == 2:
                 try:
                     float_value = struct.unpack('>f', struct.pack('>HH', regs[1], regs[0]))[0]
@@ -71,6 +76,8 @@ def process_device(row, register_name_map):
                 error_path = script_dir / "errors.csv"
                 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 append_to_csv(error_path, [timestamp, ip, reg_start, "Read Failed"], ["Timestamp", "IP", "Register", "Error"])
+    except Exception as e:
+        print(f"An error occurred while processing device {description} ({ip}): {e}")
     finally:
         client.close()
 
@@ -111,17 +118,38 @@ def archive_old_metered_data_files():
 
     #Create the main archive directory if it doesn't exist
     archive_dir.mkdir(exist_ok=True)
-
-    #Create a timestamped subfolder
-    subfolder_name= datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    subfolder_path= archive_dir / subfolder_name
+    
+    files_to_archive = list(script_dir.glob("metered_data_*.csv"))
+    
+    if not files_to_archive:
+        print("No data files to archive.")
+        return
+    
+    start_time= None
+    end_time= None
+    
+    #Finds the earliest and latest modification times among the files
+    for file in files_to_archive:
+        mod_time_ts = file.stat().st_mtime
+        if start_time is None or mod_time_ts < start_time:
+            start_time = mod_time_ts
+        if end_time is None or mod_time_ts > end_time:
+            end_time = mod_time_ts
+            
+    #Formats the timestamps for the folder name
+    start_str = datetime.fromtimestamp(start_time).strftime("%Y-%m-%d_%H-%M-%S")
+    end_str = datetime.fromtimestamp(end_time).strftime("%Y-%m-%d_%H-%M-%S")
+    
+    # Create the new timestamped subfolder
+    subfolder_name = f"{start_str}_to_{end_str}"
+    subfolder_path = archive_dir / subfolder_name
     subfolder_path.mkdir(exist_ok=True)
+    
+    print(f"Archiving files to: {subfolder_path}")
 
-    for file in script_dir.glob("metered_data_*.csv"):
+    for file in files_to_archive:
         try:
             new_path= subfolder_path / file.name
             file.rename(new_path)
-
-            print(f"Archived old file: {file.name} -> {new_path.name}")
         except Exception as e:
             print(f"Could not archive {file.name}. Error: {e}")
