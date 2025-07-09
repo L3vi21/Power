@@ -130,7 +130,7 @@ def show_graph():
     if file_path.exists():
         df = pd.read_csv(file_path)
         #The filter will now work correctly
-        df = df[df['Description'] == selected_meter].tail(num_samples)
+        df = df[df['Description'].str.strip() == selected_meter.strip()].tail(num_samples)
         
         if df.empty:
             print(f"No data for meter '{selected_meter}' in file '{csv_name}'")
