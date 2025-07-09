@@ -3,6 +3,7 @@ import csv
 import sys
 import time
 import pandas as pd
+from tkinter import *
 from pathlib import Path
 from datetime import datetime
 from pyModbusTCP.client import ModbusClient
@@ -110,10 +111,13 @@ def clear_graphs():
 #Graphs the desired values against the datetime axis
 def show_graph():
     global current_canvas
-    selected_option = combobox.get()
-    selected_meter= meter_combobox.get()
+    #Get values from the StringVar objects
+    selected_option = selected_dataset_var.get()
+    selected_meter = selected_meter_var.get()
     
-    if not selected_option or not meter_combobox:
+    #Check against the default text to ensure a selection was made
+    if not selected_option or selected_option == 'Data Set Selection' or not selected_meter or selected_meter == 'Meter Selection':
+        print("Please select both a data set and a meter.")
         return
 
     if not overlay_mode.get():
@@ -125,6 +129,7 @@ def show_graph():
 
     if file_path.exists():
         df = pd.read_csv(file_path)
+        #The filter will now work correctly
         df = df[df['Description'] == selected_meter].tail(num_samples)
         
         if df.empty:
@@ -136,9 +141,9 @@ def show_graph():
         values= df['Value']
 
         if overlay_mode.get() and current_canvas:
-            fig= current_canvas.figure
-            ax= fig.axes[0]
-            ax.plot(timestamps, values, label= selected_option)
+            fig = current_canvas.figure
+            ax = fig.axes[0]
+            ax.plot(timestamps, values, label=f"{selected_meter} - {selected_option}") # Improved label for overlay
             ax.legend()
             current_canvas.draw()
         else:
@@ -146,7 +151,7 @@ def show_graph():
             ax.plot(timestamps, values, label=selected_option)
 
             ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
-            fig.autofmt_xdate()
+            fig.autofmt_xdate() # Rotates and aligns the x-axis labels
 
             ax.set_title(f"{selected_option} - {selected_meter}")
             ax.set_xlabel("Timestamp")
@@ -155,10 +160,12 @@ def show_graph():
             ax.grid(True)
             fig.tight_layout()
 
-            new_canvas= FigureCanvasTkAgg(fig, master= graph_frame)
+            new_canvas = FigureCanvasTkAgg(fig, master=graph_frame)
             new_canvas.draw()
-            new_canvas.get_tk_widget().pack(side='top', fill='x', expand= False, pady= 10)
-            current_canvas= new_canvas
+            new_canvas.get_tk_widget().pack(side='top', fill='x', expand=False, pady=10)
+            current_canvas = new_canvas
+    else:
+        print(f"Data file not found: {file_path}")
 
 def quit_program():
     sys.exit(0)
@@ -208,11 +215,14 @@ quit_button.pack(side= LEFT, padx= 5, pady= 10)
 overlay_check = ttk.Checkbutton(root, text="Append to Graph", variable=overlay_mode, bootstyle="info")
 overlay_check.pack(side=LEFT, padx=5, pady=10)
 
+selected_dataset_var= ttk.StringVar()
+selected_meter_var= ttk.StringVar()
+
 #Drop down item to list all the possible data sets to graph
 options= ['metered_data_Apparent_PF_CH1_(MSW).csv', 'metered_data_Apparent_PF_CH2_(MSW).csv', 
            'metered_data_Apparent_PF_CH3_(MSW).csv', 'metered_data_Apparent_PF_Avg_Element_(MSW).csv']
-combobox= ttk.Combobox(root, bootstyle= "success", values= options)
-combobox.set('Data Set Selection')
+combobox= ttk.Combobox(root, bootstyle= "success", values= options, textvariable=selected_dataset_var)
+selected_dataset_var.set('Data Set Selection')
 combobox.pack(side = 'top', fill= 'x', padx= 5, pady= 10)
 
 #Drop down item to list all the possible meters to pull data from
@@ -222,8 +232,8 @@ meter_names= ['PM C4 Substation (OFFLINE)','PM Autoclave 7 (OFFLINE)','PM C1L1 S
               'PM B3 Substation','PM A1 Substation','PM Drop Bottom','PM A3 Substation',
               'PM Autoclave 3','PM Autoclave 1','PM Autoclave 10','PM Autoclave 6',
               'PM Autoclave 9','PM Autoclave 4']
-meter_combobox= ttk.Combobox(root, bootstyle= SUCCESS, values= meter_names, textvariable= 'Meter Selection')
-meter_combobox.set('Meter Selection')
+meter_combobox= ttk.Combobox(root, bootstyle= SUCCESS, values= meter_names, textvariable= selected_meter_var)
+selected_meter_var.set('Meter Selection')
 meter_combobox.pack(side= 'top', fill= 'x', padx= 5, pady= 10)
 
 #Finds the parent file path
