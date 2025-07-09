@@ -10,15 +10,94 @@ import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 
 #Creates the "Canvas" for the UI ()
 current_canvas= None
 
 #Number of samples taken per meter
-num_samples= 5
+num_samples= 50
 #Delay in seconds between each data read
 sample_delay= 1
 #Function defintions:
+
+def read_meter_data():
+    with open(csv_path, 'r') as csv_file:
+        reader = csv.DictReader(csv_file)
+
+        for row in reader:
+            ip = row['ip'].strip()
+            slave = row['slave'].strip()
+            description = row['description'].strip()
+            count = int(row['count'].strip())
+            registers = register_parser(row['start_addr'])
+
+            #If slave does not exist
+            if not slave:
+                continue
+        
+            #Converts slave id to useable int
+            slave_id = int(slave)
+
+            #Connect to Modbus, No need for slave ID, just keep it constant at 1 per default value
+            client = ModbusClient(host=ip, port=502, unit_id=1, auto_open=True, timeout=3.0)
+
+            #Ensures correct connection to the modbus to the specific meter
+            print(f"\nReading from {description} ({ip}, slave {slave_id})")
+            client.open()
+            print("Client open:", client.is_open)
+
+            #Example of accessing the frequency register, is able to get the proper registers
+            #Able to convert the data and store it as a float into a csv file with a proper header as well
+
+            #regs = client.read_holding_registers(1165-1,2)
+
+            #if regs and len(regs) == 2:
+            #    float_value = struct.unpack('>f', struct.pack('>HH', regs[1], regs[0]))[0]
+            #    print("Dent Instruments float value:", float_value)
+            #    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            #    data_row = [timestamp, description, ip, slave_id, 1165, float_value]
+            #    header = ["Timestamp", "Description", "IP", "Slave", "Register", "Value"]
+            #    append_to_csv(output_csv, data_row, header)
+
+            #Accessing multiple registers and store them into their own csv files top then be able to graph
+
+            for _ in range(num_samples):
+                for reg_start in registers:
+                    reg_name = register_name_map.get(reg_start, f"Register{reg_start}")
+                    print(f"Attempting to read from register {reg_name} (Reg_value={reg_start})")
+
+                    regs = client.read_holding_registers(reg_start-1, 2)
+            
+                    #Makes sure that the data being stored is a float32 made up of two 16 bit register
+                    if regs and len(regs) == 2:
+                        try:
+                            # First the data is packed using the little endian format and the data type is an unsigned int
+                            # represented by '>HH'. Then the data is unpacked, making sure to get the msb first then the lsb,
+                            # it is then stored in a tuple, more specifically the first index.
+                            # 
+                            float_value = struct.unpack('>f', struct.pack('>HH', regs[1], regs[0]))[0]
+                            time_of_data = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                
+                        except Exception as e:
+                            print(f"Decode error: {str(e)}")
+                            continue
+                    
+
+                        safe_reg_name = reg_name.replace(" ", "_").replace("/","-")
+                        output_file = script_dir / f"metered_data{safe_reg_name}.csv"
+
+                        data_row = [time_of_data, description, ip, slave_id, reg_start, reg_name, float_value]
+                        header = ["Timestamp", "Description", "IP", "Slave", "Register", "Register_Name", "Value"]
+
+                        append_to_csv(f"metered_data_{safe_reg_name}.csv", data_row, header)
+                    else:    
+                        print(f"Read Failed for {reg_name} ({reg_start})")
+                        error_path = script_dir / "errors.csv"
+                        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        append_to_csv(error_path, [timestamp, ip, reg_start, "Read Failed"], ["Timestamp", "IP", "Register", "Error"])
+                #Adds a delay between consecutive reads
+                time.sleep(sample_delay)
 
 #Creates the functionality for the "Clear Graph" button
 def clear_graphs():
@@ -53,7 +132,7 @@ def show_graph():
             return
         
         print(df)
-        timestamps = pd.to_datetime(df['Time'])
+        timestamps = pd.to_datetime(df['Timestamp'], format= '%Y-%m-%d %H:%M:%S')
         values= df['Value']
 
         if overlay_mode.get() and current_canvas:
@@ -65,6 +144,10 @@ def show_graph():
         else:
             fig, ax = plt.subplots(figsize=(8, 5))
             ax.plot(timestamps, values, label=selected_option)
+
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
+            fig.autofmt_xdate()
+
             ax.set_title(f"{selected_option} - {selected_meter}")
             ax.set_xlabel("Timestamp")
             ax.set_ylabel("Value")
@@ -108,6 +191,10 @@ graph_frame.pack(fill='both', expand=True)
 show_button= ttk.Button(root, text= "Graph", bootstyle= (SUCCESS, OUTLINE))
 show_button.pack(side= LEFT, padx= 5, pady= 10)
 show_button.config(command=show_graph)
+
+#Button to read meter data on demand
+read_data_button = ttk.Button(root, text="Read Meter Data", bootstyle=(PRIMARY, OUTLINE), command=read_meter_data)
+read_data_button.pack(side=LEFT, padx=5, pady=10)
 
 #Clear all button, in order to clear window
 clear_button= ttk.Button(root, text="Clear Graphs", bootstyle=(DANGER, OUTLINE), command=clear_graphs)
@@ -166,83 +253,6 @@ for _, row in df.iterrows():
     register_name_map[reg_value] = row['Modbus Register Name']
 
 #register_name_map = {int(row['Modbus\n Register']): row['Modbus Register Name'] for _, row in df.iterrows()}
-
-with open(csv_path, 'r') as csv_file:
-    reader = csv.DictReader(csv_file)
-
-    for row in reader:
-        ip = row['ip'].strip()
-        slave = row['slave'].strip()
-        description = row['description'].strip()
-        count = int(row['count'].strip())
-        registers = register_parser(row['start_addr'])
-
-        #If slave does not exist
-        if not slave:
-            continue
-        
-        #Converts slave id to useable int
-        slave_id = int(slave)
-
-        #Connect to Modbus, No need for slave ID, just keep it constant at 1 per default value
-        client = ModbusClient(host=ip, port=502, unit_id=1, auto_open=True, timeout=3.0)
-
-        #Ensures correct connection to the modbus to the specific meter
-        print(f"\nReading from {description} ({ip}, slave {slave_id})")
-        client.open()
-        print("Client open:", client.is_open)
-
-        #Example of accessing the frequency register, is able to get the proper registers
-        #Able to convert the data and store it as a float into a csv file with a proper header as well
-
-        #regs = client.read_holding_registers(1165-1,2)
-
-        #if regs and len(regs) == 2:
-        #    float_value = struct.unpack('>f', struct.pack('>HH', regs[1], regs[0]))[0]
-        #    print("Dent Instruments float value:", float_value)
-        #    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        #    data_row = [timestamp, description, ip, slave_id, 1165, float_value]
-        #    header = ["Timestamp", "Description", "IP", "Slave", "Register", "Value"]
-        #    append_to_csv(output_csv, data_row, header)
-
-        #Accessing multiple registers and store them into their own csv files top then be able to graph
-
-        for _ in range(num_samples):
-            for reg_start in registers:
-                reg_name = register_name_map.get(reg_start, f"Register{reg_start}")
-                print(f"Attempting to read from register {reg_name} (Reg_value={reg_start})")
-
-                regs = client.read_holding_registers(reg_start-1, 2)
-            
-                #Makes sure that the data being stored is a float32 made up of two 16 bit register
-                if regs and len(regs) == 2:
-                    try:
-                        # First the data is packed using the little endian format and the data type is an unsigned int
-                        # represented by '>HH'. Then the data is unpacked, making sure to get the msb first then the lsb,
-                        # it is then stored in a tuple, more specifically the first index.
-                        # 
-                        float_value = struct.unpack('>f', struct.pack('>HH', regs[1], regs[0]))[0]
-                        time_of_data = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                
-                    except Exception as e:
-                        print(f"Decode error: {str(e)}")
-                        continue
-                    
-
-                    safe_reg_name = reg_name.replace(" ", "_").replace("/","-")
-                    output_file = script_dir / f"metered_data{safe_reg_name}.csv"
-
-                    data_row = [time_of_data, description, ip, slave_id, reg_start, reg_name, float_value]
-                    header = ["Time", "Description", "IP", "Slave", "Register", "Register_Name", "Value"]
-
-                    append_to_csv(f"metered_data_{safe_reg_name}.csv", data_row, header)
-                else:    
-                    print(f"Read Failed for {reg_name} ({reg_start})")
-                    error_path = script_dir / "errors.csv"
-                    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    append_to_csv(error_path, [timestamp, ip, reg_start, "Read Failed"], ["Timestamp", "IP", "Register", "Error"])
-            #Adds a delay between consecutive reads
-            time.sleep(sample_delay)
 
 root.mainloop()
 

@@ -16,6 +16,9 @@ def get_data_from_csvs():
     file_pattern = os.path.join(data_directory, '**', '*.csv')
     all_files = glob.glob(file_pattern, recursive=True)
     
+    #Debugging print
+    #print(f"Here are the files:{all_files}")
+    
     if not all_files:
         print(f"Warning: No .csv files found in '{data_directory}'.")
         return pd.DataFrame()
@@ -23,19 +26,26 @@ def get_data_from_csvs():
     df_list= []
     for file in all_files:
         try:
-            df= pd.read_csv(file)
-            df_list.append(df)
+            df= pd.read_csv(file, header= 0)
+
+            if 'Timestamp' not in df.columns:
+                print(f"Skipping file (missing 'Timestamp'): {file}")
+                print(f"Available columns: {df.columns.tolist()}")
+                continue
+
+            df = pd.concat(df_list, ignore_index=True)
+
+            df['Timestamp']= pd.to_datetime(df['Timestamp'], format='%Y/%m/%d %I:%M:%S %p' ,errors= 'coerce')
+            df= df_list.append(df)
         except Exception as e:
-            print(f"Error reading:{file}: {e}")
+            print(f"Error reading {file}: {e}")
 
     if not df_list:
-        print("No data could be loaded from hte found files.")
+        print("No valid dataframes to concatenate.")
         return pd.DataFrame()
-    
-    df = pd.concat(df_list, ignore_index=True)
 
-    df['Timestamp']= pd.to_datetime(df['Timestamp'], errors= 'coerce')
-    df= df.sort_values(by='Timestamp')
+    df = pd.concat(df_list, ignore_index=True)
+    df = df.sort_values(by='Timestamp')
 
     print("Data Loading Complete")
     return df
