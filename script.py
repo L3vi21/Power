@@ -184,57 +184,55 @@ def append_to_csv(filename, data, header):
             writer.writerow(header)
         writer.writerow(data)
 
-#Tkinter main application window for frontend
-root = ttk.Window(themename="darkly")
-root.geometry("1920x1080")
-#Controls whether multiple sets of data go on the same graph
-overlay_mode = ttk.BooleanVar(value=False)
+# Frame for the graphs to live in, packed to fill the main area
+graph_frame = ttk.Frame(root, padding="10 10 10 10")
+graph_frame.pack(side=TOP, fill=BOTH, expand=True)
 
-#Frame for the graphs tp live in instead of the entire window
-graph_frame= ttk.Frame(root, padding= "10 10 10 10")
-graph_frame.pack(fill='both', expand=True)
+# Create a new frame for all the control widgets
+control_frame = ttk.Frame(root, padding="10")
+control_frame.pack(side=BOTTOM, fill=X)
 
-#Button to display the graph
-show_button= ttk.Button(root, text= "Graph", bootstyle= (SUCCESS, OUTLINE))
-show_button.pack(side= LEFT, padx= 5, pady= 10)
+# Button to display the graph - place it in control_frame
+show_button = ttk.Button(control_frame, text="Graph", bootstyle=(SUCCESS, OUTLINE))
+show_button.pack(side=LEFT, padx=5, pady=10)
 show_button.config(command=show_graph)
 
-#Button to read meter data on demand
-read_data_button = ttk.Button(root, text="Read Meter Data", bootstyle=(PRIMARY, OUTLINE), command=read_meter_data)
+# Button to read meter data on demand - place it in control_frame
+read_data_button = ttk.Button(control_frame, text="Read Meter Data", bootstyle=(PRIMARY, OUTLINE), command=read_meter_data)
 read_data_button.pack(side=LEFT, padx=5, pady=10)
 
-#Clear all button, in order to clear window
-clear_button= ttk.Button(root, text="Clear Graphs", bootstyle=(DANGER, OUTLINE), command=clear_graphs)
-clear_button.pack(side=LEFT, padx= 5, pady= 10)
+# Clear all button - place it in control_frame
+clear_button = ttk.Button(control_frame, text="Clear Graphs", bootstyle=(DANGER, OUTLINE), command=clear_graphs)
+clear_button.pack(side=LEFT, padx=5, pady=10)
 
-#Quit Button in order to shut down the program
-quit_button= ttk.Button(root, text= "Quit", bootstyle=(LIGHT,OUTLINE), command= quit_program)
-quit_button.pack(side= LEFT, padx= 5, pady= 10)
+# Quit Button - place it in control_frame
+quit_button = ttk.Button(control_frame, text="Quit", bootstyle=(LIGHT, OUTLINE), command=quit_program)
+quit_button.pack(side=LEFT, padx=5, pady=10)
 
-#Button controlling controlling whether multiple data sets will be printed to the same graph
-overlay_check = ttk.Checkbutton(root, text="Append to Graph", variable=overlay_mode, bootstyle="info")
+# Overlay checkbutton - place it in control_frame
+overlay_check = ttk.Checkbutton(control_frame, text="Append to Graph", variable=overlay_mode, bootstyle="info")
 overlay_check.pack(side=LEFT, padx=5, pady=10)
 
-selected_dataset_var= ttk.StringVar()
-selected_meter_var= ttk.StringVar()
+selected_dataset_var = ttk.StringVar()
+selected_meter_var = ttk.StringVar()
 
-#Drop down item to list all the possible data sets to graph
-options= ['metered_data_Apparent_PF_CH1_(MSW).csv', 'metered_data_Apparent_PF_CH2_(MSW).csv', 
+# Drop down item to list all the possible data sets - place it in control_frame
+options = ['metered_data_Apparent_PF_CH1_(MSW).csv', 'metered_data_Apparent_PF_CH2_(MSW).csv',
            'metered_data_Apparent_PF_CH3_(MSW).csv', 'metered_data_Apparent_PF_Avg_Element_(MSW).csv']
-combobox= ttk.Combobox(root, bootstyle= "success", values= options, textvariable=selected_dataset_var)
+combobox = ttk.Combobox(control_frame, bootstyle="success", values=options, textvariable=selected_dataset_var)
 selected_dataset_var.set('Data Set Selection')
-combobox.pack(side = 'top', fill= 'x', padx= 5, pady= 10)
+combobox.pack(side=LEFT, fill='x', expand=True, padx=5, pady=10)
 
-#Drop down item to list all the possible meters to pull data from
-meter_names= ['PM C4 Substation (OFFLINE)','PM Autoclave 7 (OFFLINE)','PM C1L1 Substation',
-              'PM C1L2 Substation','PM C2P Substation','PM Autoclave 5','PM Autoclave 2',
-              'PM Autoclave 8','PM C2L Substation','PM C1A Substation','PM B2 Substation',
-              'PM B3 Substation','PM A1 Substation','PM Drop Bottom','PM A3 Substation',
-              'PM Autoclave 3','PM Autoclave 1','PM Autoclave 10','PM Autoclave 6',
-              'PM Autoclave 9','PM Autoclave 4']
-meter_combobox= ttk.Combobox(root, bootstyle= SUCCESS, values= meter_names, textvariable= selected_meter_var)
+# Drop down item to list all the possible meters - place it in control_frame
+meter_names = ['PM C4 Substation (OFFLINE)', 'PM Autoclave 7 (OFFLINE)', 'PM C1L1 Substation',
+               'PM C1L2 Substation', 'PM C2P Substation', 'PM Autoclave 5', 'PM Autoclave 2',
+               'PM Autoclave 8', 'PM C2L Substation', 'PM C1A Substation', 'PM B2 Substation',
+               'PM B3 Substation', 'PM A1 Substation', 'PM Drop Bottom', 'PM A3 Substation',
+               'PM Autoclave 3', 'PM Autoclave 1', 'PM Autoclave 10', 'PM Autoclave 6',
+               'PM Autoclave 9', 'PM Autoclave 4']
+meter_combobox = ttk.Combobox(control_frame, bootstyle=SUCCESS, values=meter_names, textvariable=selected_meter_var)
 selected_meter_var.set('Meter Selection')
-meter_combobox.pack(side= 'top', fill= 'x', padx= 5, pady= 10)
+meter_combobox.pack(side=LEFT, fill='x', expand=True, padx=5, pady=10)
 
 #Finds the parent file path
 script_dir = Path(__file__).parent
