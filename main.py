@@ -7,9 +7,12 @@ from app import app  # Your Flask app
 
 def start_scheduler():
     # Schedule every 10 minutes
-    schedule.every(10).minutes.do(pull_data)
+    print("⏰ Scheduler thread started")
+    schedule.every(1).minutes.do(lambda: print("⏳ Scheduled task should run now"))
+    schedule.every(1).minutes.do(pull_data)
 
     #Running initial data pull at startup
+    print("▶️ Running initial data pull")
     pull_data()
 
     while True:
@@ -22,10 +25,18 @@ def start_flask():
 if __name__ == "__main__":
     #Archieve any existing data files before reading
     archive_old_metered_data_files()
-    # Start Modbus polling in a separate thread
+
+    #Start Flask in one thread
+    flask_thread = threading.Thread(target=start_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+
+    #Start scheduler in another
     scheduler_thread = threading.Thread(target=start_scheduler)
     scheduler_thread.daemon = True
     scheduler_thread.start()
+
+
 
     # Start Flask app
     start_flask()

@@ -32,10 +32,8 @@ def get_data_from_csvs():
                 print(f"Skipping file (missing 'Timestamp'): {file}")
                 print(f"Available columns: {df.columns.tolist()}")
                 continue
-
-            df = pd.concat(df_list, ignore_index=True)
-
-            df['Timestamp']= pd.to_datetime(df['Timestamp'], format='%Y/%m/%d %I:%M:%S %p' ,errors= 'coerce')
+            
+            df['Timestamp'] = pd.to_datetime(df['Timestamp'], format='%Y/%m/%d %I:%M:%S %p', errors='coerce')
             df= df_list.append(df)
         except Exception as e:
             print(f"Error reading {file}: {e}")
