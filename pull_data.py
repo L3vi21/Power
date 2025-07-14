@@ -14,6 +14,9 @@ csv_path = script_dir / "ips.csv"
 #Path to the DentInstruments register list
 excel_path = script_dir / 'PSHD_MASTER_REGISTER_LIST_current-4.xlsx'
 sheet_name = "A"
+# Define the directory for saving metered data and ensure it exists
+data_dir = script_dir / "metered_data"
+data_dir.mkdir(exist_ok=True)
 
 #Synchronization variable
 csv_lock = threading.Lock()
@@ -70,7 +73,9 @@ def process_device(row, register_name_map):
                 data_row = [time_of_data, description, ip, slave_id, reg_start, reg_name, float_value]
                 header = ["Timestamp", "Description", "IP", "Slave", "Register", "Register_Name", "Value"]
                 
-                append_to_csv(f"metered_data_{safe_reg_name}.csv", data_row, header)
+                output_csv_path= data_dir / f"metered_data_{safe_reg_name}.csv"
+                append_to_csv(output_csv_path, data_row, header)
+                
             else:
                 print(f"Read Failed for {reg_name} ({reg_start})")
                 error_path = script_dir / "errors.csv"
@@ -114,9 +119,10 @@ def pull_data():
             executor.submit(process_device, device_row, register_name_map)
 
 def archive_old_metered_data_files():
-    archive_dir = script_dir / "metered_data"
-
     #Create the main archive directory if it doesn't exist
+    source_dir= data_dir
+    archive_dir = script_dir / "archived_data"
+    
     archive_dir.mkdir(exist_ok=True)
     
     files_to_archive = list(script_dir.glob("metered_data_*.csv"))
