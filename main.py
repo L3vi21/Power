@@ -20,6 +20,7 @@ def start_scheduler():
         time.sleep(1)
 
 def start_flask():
+    print("⏰ Flask Scheduler thread started")
     app.run(host='0.0.0.0', port= 5000, debug= True, use_reloader= False)
 
 if __name__ == "__main__":
@@ -35,6 +36,7 @@ if __name__ == "__main__":
     scheduler_thread = threading.Thread(target=start_scheduler)
     scheduler_thread.daemon = True
     scheduler_thread.start()
+    flask_thread.join()
 
 
 
