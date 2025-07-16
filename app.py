@@ -49,7 +49,7 @@ def get_data_from_csvs():
         return pd.DataFrame()
 
     combined_df = pd.concat(df_list, ignore_index=True)
-    combined_df = df.sort_values(by='Timestamp')
+    combined_df = combined_df.sort_values(by='Timestamp')
 
     print("Data Loading Complete")
     return combined_df
