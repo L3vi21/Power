@@ -43,15 +43,15 @@
                 <div class="space-y-6">
                     <!--Equipment Selector-->
                     <div>
-                        <label for="equipment-select" class="block text-sm font-medium text-gray-300 mb-2">Equipment</label>
-                        <select id="equipment-select" class="w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <label for="equipment-filter" class="block text-sm font-medium text-gray-300 mb-2">Equipment</label>
+                        <select id="equipment-filter" class="w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
                         <!--Options will be populated by JavaScript-->
                         </select> 
                     </div>
                     <!--Register Selector-->
                     <div>
-                        <label for="register-select" class="block text-sm font-medium text-gray-300 mb-2">Data / Register</label>
-                        <select id="register-select" class="w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <label for="register-filter" class="block text-sm font-medium text-gray-300 mb-2">Data / Register</label>
+                        <select id="register-filter" class="w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
                         <!--Options will be populated by JavaScript-->
                         </select>
                     </div>
@@ -71,7 +71,7 @@
                 <!--Chart Container-->
                 <div class="bg-gray-800 p-4 sm:p-6 rounded-x1 shadow-lg">
                     <div id="loading-indicator" class="text-center p-8">Loading Chart...</div>
-                    <canvas id="data-chart" style="display: none;"></canvas>
+                    <canvas id="data_chart" style="display: none;"></canvas>
                 </div>
 
                 <!--Data Table Container-->
@@ -98,185 +98,134 @@
     </div>
     
     <script>
-        document.addEventListener('DOMContentLoaded',() => {
-            const equipmentSelect= document.getElementById('equipment-select');
-            const registerSelect= document.getElementById('register-select');
-            const startDateInput= document.getElementById('start-date');
-            const endDateInput= document.getElementById('end-date');
-            const tableBody= document.getElementById('data-table-body');
-            const loadingIndicator= document.getElementById('loading-indicator');
-            const chartCanvas= document.getElementById('data-chart');
+        // Global variable to hold the chart instance so we can update it
+        let data_chart;
 
-            let dataChart= null;
+        // This function runs when the page loads to fill the dropdowns
+        async function populateFilters() {
+            try {
+                const response = await fetch('/api/filters');
+                const data = await response.json();
 
-            const today= new Date();
-            const thirtyDaysAgo= new Date(new Date().setDate(today.getDate()-30));
-            endDateInput.value= today.toISOString().split('T')[0];
-            startDateInput.value= thirtyDaysAgo.toISOString().split('T')[0];
-
-            async function initializeFilters() {
-                try {
-                    const response= await fetch('api/filters');
-                    const { equipments, registers } = await response.json();
-
-                    equipmentSelect.innerHTML= '<option>All Equipment</option>';
-                    equipments.forEach(eq => {
-                        const option= document.createElement('option');
-                        option.value= eq;
-                        option.textContent= eq;
-                        equipmentSelect.appendChild(option);
-                    });
-
-                    registerSelect.innerHTML= '<option>All Registers</option>';
-                    registers.forEach(reg =>{
-                        const option= document.createElement('option');
-                        option.value= reg;
-                        option.textContent= reg;
-                        registerSelect.appendChild(option);
-                    });
-
-                    fetchAndDisplayData();
-                }
-                catch(error) {
-                    console.error("Error initializing filters:", error);
-                    loadingIndicator.textContent= 'Error loading filter data.';
-                }
-            }
-
-            async function fetchAndDisplayData() {
-                loadingIndicator.style.display= 'block'
-                chartCanvas.style.display= 'none';
-                tableBody.innerHTML= '<tr><td colspan="4" class="text-center p-4">Loading data...</td></tr>';
-
-                const equipment= equipmentSelect.value;
-                const register= registerSelect.value;
-                const startDate= startDateInput.value;
-                const endDate= endDateInput.value;
-
-                const query= new URLSearchParams({equipment, register, startDate, endDate});
-
-                try {
-                    const response= await fetch(`/api/data?${query}`);
-                    const data= await response.json();
-
-                    loadingIndicator.style.display= 'none';
-                    chartCanvas.style.display= 'block';
-
-                    renderChart(data);
-                    renderTable(data);
-                } catch (error) {
-                    console.error("Error fetching data:", error);
-                    loadingIndicator.textContent = 'Error loading chart data.';
-                    tableBody.innerHTML= '<tr><td colspan="4" class= "text-center p-4">Error loading data.</td></tr>';
-                }
-            }
-
-            async function renderChart(data) {
-                const ctx= chartCanvas.getContext('2d');
-
-                const datasets= {};
-                data.forEach(item => {
-                    const key= `${item.Description} - ${item.Register_Name}`;
-                    if (!datasets[key]) {
-                        datasets[key] = {
-                            label: key,
-                            data: [],
-                            borderColor: getRandomColor(),
-                            tension: 0.1,
-                            fill: false,
-                            pointRadius: 1,
-                            pointHoverRadius: 5,
-                        };
-                    }
-                    datasets[key].data.push({ x: item.Timestamp, y: item.Value});
+                const equipmentSelect = document.getElementById('equipment-filter');
+                equipmentSelect.innerHTML = '<option>All Equipment</option>';
+                data.equipments.forEach(eq => {
+                    equipmentSelect.innerHTML += `<option>${eq}</option>`;
                 });
 
-                if (dataChart) {
-                    dataChart.destroy();
-                }
-
-                dataChart= new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        datasets: Object.values(datasets)
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            x: {
-                                type: 'time',
-                                time: {
-                                    unit: 'day',
-                                    tooltipFormat: 'PPpp'
-                                },
-                                title: {
-                                    display: true,
-                                    text: 'Timestamp',
-                                    color: '#9ca3af'
-                                },
-                                ticks: {color: '#9ca3af' }
-                            },
-                            y: {
-                                title: {
-                                    display: true,
-                                    text: 'Value',
-                                    color: '#9ca3af'
-                                },
-                                ticks: {color: '#9ca3af'}
-                            }
-                        },
-                        plugins: {
-                            legend: {
-                                labels: {color: '#e2e8f0'}
-                            },
-                            tooltip: {
-                                mode: 'index',
-                                intersect: false
-                            }
-                        }
-                    }
+                const registerSelect = document.getElementById('register-filter');
+                registerSelect.innerHTML = '<option>All Registers</option>';
+                data.registers.forEach(reg => {
+                    registerSelect.innerHTML += `<option>${reg}</option>`;
                 });
+            } catch (error) {
+                console.error("Error populating filters:", error);
+            }
+        }
+
+        // This function runs when you click the "Update" button
+        async function updateDashboard() {
+            const equipment = document.getElementById('equipment-filter').value;
+            const register = document.getElementById('register-filter').value;
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+
+            // --- Helper function to clear the display ---
+            function clearDisplay() {
+                if (myChart) {
+                    myChart.destroy(); // Clear the chart
+                }
+                const tableBody = document.querySelector("#data-table tbody");
+                tableBody.innerHTML = '<tr><td colspan="4">Please select specific equipment and a register to display data.</td></tr>'; // Clear the table and show a message
             }
 
-            function renderTable(data) {
-                tableBody.innerHTML = '';
+            // NEW: Check if the user has made a specific selection.
+            if (equipment === 'All Equipment' || register === 'All Registers') {
+                clearDisplay();
+                return; // Stop here if no specific selection is made.
+            }
+
+            // Build the URL to call the API
+            const url = new URL('/api/data', window.location.origin);
+            url.searchParams.append('equipment', equipment);
+            url.searchParams.append('register', register);
+            if (startDate) url.searchParams.append('startDate', startDate);
+            if (endDate) url.searchParams.append('endDate', endDate);
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const data = await response.json();
+
+                // If the API returns no data for the selection, clear the display
                 if (data.length === 0) {
-                    tableBody.innerHTML= '<tr><td colspan="4" class="text-center p-4">No data available for the selected filters.</td></tr>';
+                    clearDisplay();
                     return;
                 }
 
-                const recentData= data.slice(-500);
+                // --- Update the Chart ---
+                const labels = data.map(item => item.Timestamp);
+                const values = data.map(item => item.Value);
 
-                recentData.forEach(item => {
-                    const row= document.createElement('tr');
-                    row.className= 'bg-gray-800 border-b border-gray-700 hover:bg-gray-600';
-                    row.innerHTML= `<td class="px-4 py-2">${new Date(item.Timestamp).toLocaleString()}</td>
-                                    <td class="px-4 py-2">${item.Description}</td>
-                                    <td class="px-4 py-2">${item.Register_Name}</td>
-                                    <td class="px-4 py-2">${item.Value}</td>
-                                `;
-                                tableBody.appendChild(row);
-                });
-            }
-
-            function getRandomColor() {
-                const letters = '0123456789ABCDEF';
-                let color= '#';
-                for (let i= 0; i < 6; i++) {
-                    color += letters[Math.floor(Math.random() * 16)];
+                const ctx = document.getElementById('myChart').getContext('2d');
+                if (myChart) {
+                    myChart.destroy();
                 }
-                return color;
-            }
+                myChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                    labels: labels,
+                        datasets: [{
+                            label: `Value for ${register}`,
+                            data: values,
+                            borderColor: 'rgb(75, 192, 192)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
 
-            equipmentSelect.addEventListener('change', fetchAndDisplayData);
-            registerSelect.addEventListener('change', fetchAndDisplayData);
-            startDateInput.addEventListener('change', fetchAndDisplayData);
-            endDateInput.addEventListener('change', fetchAndDisplayData);
+        // --- Update the Table ---
+        const tableBody = document.querySelector("#data-table tbody");
+        tableBody.innerHTML = '';
+        data.forEach(row => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${row.Timestamp}</td>
+                <td>${row.Description}</td>
+                <td>${row.Register_Name}</td>
+                <td>${row.Value.toFixed(2)}</td>
+            `;
+            tableBody.appendChild(tr);
+        });
 
-            initializeFilters();
+    } catch (error) {
+        console.error("Could not fetch or display data:", error);
+        alert("Error: Unable to display data. Check the console for details.");
+    }
+}
+
+
+        // This runs once after the page has fully loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            populateFilters();
+
+            // Set default dates to the last 7 days
+            const today = new Date();
+            const pastDate = new Date();
+            pastDate.setDate(today.getDate() - 7);
+            document.getElementById('end-date').value = today.toISOString().split('T')[0];
+            document.getElementById('start-date').value = pastDate.toISOString().split('T')[0];
+
+            updateDashboard(); // Load the initial view
+
+            // Add event listener to your button
+            document.getElementById('update-button').addEventListener('click', updateDashboard);
         });
     </script>
+
 </body>
 </html>
 

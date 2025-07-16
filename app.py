@@ -89,42 +89,37 @@ def get_filters():
 
 @app.route('/api/data')
 def get_chart_data():
-    if main_df.empty:
-        print("DEBUG: main_df is empty, returning no data.")
-        return jsonify([])
-        
-    print("\n--- DEBUG: Received new request for chart data ---")
-    filtered_df = main_df.copy()
-    print(f"Step 0: Initial data size: {len(filtered_df)} rows")
-
-    # Get filter values from the request URL
     equipment = request.args.get('equipment')
     register = request.args.get('register')
+
+    # NEW: Check if specific filters have been applied.
+    # If not, return an empty list to prevent sending too much data.
+    if not equipment or equipment == 'All Equipment' or not register or register == 'All Registers':
+        print("DEBUG: No specific equipment/register selected. Returning empty list to prevent browser overload.")
+        return jsonify([])
+
+    # If specific filters ARE provided, proceed as normal.
+    if main_df.empty:
+        return jsonify([])
+        
+    filtered_df = main_df.copy()
+
     start_date_str = request.args.get('startDate')
     end_date_str = request.args.get('endDate')
 
-    print(f"Filters received -> Equipment: '{equipment}', Register: '{register}', Start: '{start_date_str}', End: '{end_date_str}'")
-
-    # Apply filters
-    if equipment and equipment != 'All Equipment':
-        filtered_df = filtered_df[filtered_df['Description'] == equipment]
-        print(f"Step 1: After 'Equipment' filter: {len(filtered_df)} rows remaining")
-
-    if register and register != 'All Registers':
-        filtered_df = filtered_df[filtered_df['Register_Name'] == register]
-        print(f"Step 2: After 'Register' filter: {len(filtered_df)} rows remaining")
+    # Apply the specific filters that are now required
+    filtered_df = filtered_df[filtered_df['Description'] == equipment]
+    filtered_df = filtered_df[filtered_df['Register_Name'] == register]
 
     if start_date_str:
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
         filtered_df = filtered_df[filtered_df['Timestamp'] >= start_date]
-        print(f"Step 3: After 'Start Date' filter: {len(filtered_df)} rows remaining")
 
     if end_date_str:
         end_date = datetime.strptime(end_date_str, '%Y-%m-%d') + timedelta(days=1)
         filtered_df = filtered_df[filtered_df['Timestamp'] < end_date]
-        print(f"Step 4: After 'End Date' filter: {len(filtered_df)} rows remaining")
     
-    print(f"--- Final filtered data size: {len(filtered_df)} rows ---")
+    print(f"DEBUG: Returning {len(filtered_df)} rows for specific selection.")
     return jsonify(filtered_df.to_dict(orient='records'))
 
 if __name__ == '__main__':
