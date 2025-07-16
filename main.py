@@ -42,7 +42,7 @@ if __name__ == "__main__":
         scheduler_thread = threading.Thread(target=start_scheduler)
         scheduler_thread.daemon = True
         scheduler_thread.start()
-        flask_thread.join()
+        
     except Exception as e:
         print(f"A fatal error has occured during startup: {e}")
 

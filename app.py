@@ -42,7 +42,7 @@ def get_data_from_csvs():
             
             df['Timestamp'] = pd.to_datetime(df['Timestamp'], format='%Y-%m-%d %H:%M:%S %p', errors='coerce')
             df.dropna(subset=['Timestamp'], inplace=True)
-            df= df_list.append(df)
+            df_list.append(df)
             
         except Exception as e:
             print(f"Error reading {file}: {e}")
