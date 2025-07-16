@@ -1,4 +1,0 @@
-Time,Description,IP,Slave,Register,Register_Name,Value
-2025-07-11 08:45:19,PM C1L1 Substation,10.129.7.21,3,1199,Exported Energy Sum Element (MSW),1.4761279999220278e-05
-2025-07-11 09:10:20,PM C1L2 Substation,10.129.7.22,4,1199,Exported Energy Sum Element (MSW),2.3530907128588296e-05
-2025-07-11 09:35:20,PM C2P Substation,10.129.7.25,5,1199,Exported Energy Sum Element (MSW),14.238595962524414
