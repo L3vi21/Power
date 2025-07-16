@@ -33,7 +33,7 @@ def get_data_from_csvs():
                 print(f"Available columns: {df.columns.tolist()}")
                 continue
             
-            df['Timestamp'] = pd.to_datetime(df['Timestamp'], format='%Y/%m/%d %I:%M:%S %p', errors='coerce')
+            df['Timestamp'] = pd.to_datetime(df['Timestamp'], format='%Y/%m/%d %H:%M:%S %p', errors='coerce')
             df= df_list.append(df)
         except Exception as e:
             print(f"Error reading {file}: {e}")
@@ -49,7 +49,7 @@ def get_data_from_csvs():
     return df
 
 # This function will be called by the scheduler
-defrefresh_data():
+def refresh_data():
     global main_df
     print("Refreshing data from archived CSVs...")
     main_df = get_data_from_csvs()
@@ -69,8 +69,8 @@ def get_filters():
             'registers': []
         })
         
-    equipments = main_df['Description'].unique().tolist()
-    registers = main_df['Register_Name'].unique().tolist()
+    equipments = sorted([str(e) for e in main_df['Description'].unique() if pd.notna(e)])
+    registers = sorted([str(r) for r in main_df['Register_Name'].unique() if pd.notna(r)])
     return jsonify({
         'equipments': sorted(equipments),
         'registers': sorted(registers)
