@@ -7,20 +7,23 @@ from datetime import datetime, timedelta
 app= Flask(__name__)
 
 def get_data_from_csvs():
-    data_directory= "archived_data"
+    archive_directory= "archived_data"
+    live_data_directory= "metered_data"
 
-    if not os.path.exists(data_directory):
-        print(f"WARNING: Data directory for {data_directory} not found")
-        return pd.DataFrame()
+    if not os.path.exists(archive_directory):
+        print(f"WARNING: Data directory for {archive_directory} not found")
+    if not os.path.exists(live_data_directory):
+        print(f"WARNING: Data directory for {live_data_directory} not found")
     
-    file_pattern = os.path.join(data_directory, '**', '*.csv')
-    all_files = glob.glob(file_pattern, recursive=True)
+    archive_pattern= os.path.join(archive_directory,'**','*.csv')
+    live_pattern = os.path.join(live_data_directory,'*.csv')
+    all_files = glob.glob(archive_pattern, recursive=True) + glob.glob(live_pattern)
     
     #Debugging print
     #print(f"Here are the files:{all_files}")
     
     if not all_files:
-        print(f"Warning: No .csv files found in '{data_directory}'.")
+        print("Warning: No .csv files found.")
         return pd.DataFrame()
     
     df_list= []
