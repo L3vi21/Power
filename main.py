@@ -7,14 +7,13 @@ from app import app, refresh_data# Your Flask app
 
 def run_data_cycle():
     pull_data()
-    archive_old_metered_data_files()
     refresh_data()
 
 def start_scheduler():
     # Schedule every 10 minutes
     print("⏰ Scheduler thread started")
     schedule.every(1).minutes.do(lambda: print("⏳ Scheduled task should run now"))
-    schedule.every(1).minutes.do(pull_data)
+    schedule.every(1).minutes.do(run_data_cycle)
 
     #Running initial data pull at startup
     print("▶️ Running initial data pull")
@@ -30,6 +29,9 @@ def start_flask():
 
 if __name__ == "__main__":
     try:
+        #Archive Preexisting data files in the directory
+        archive_old_metered_data_files()
+
         run_data_cycle()
         #Start Flask in one thread
         flask_thread = threading.Thread(target=start_flask)

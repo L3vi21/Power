@@ -125,7 +125,7 @@ def archive_old_metered_data_files():
     
     archive_dir.mkdir(exist_ok=True)
     
-    files_to_archive = list(script_dir.glob("metered_data_*.csv"))
+    files_to_archive = list(source_dir.glob("metered_data_*.csv"))
     
     if not files_to_archive:
         print("No data files to archive.")
