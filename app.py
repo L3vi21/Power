@@ -48,6 +48,13 @@ def get_data_from_csvs():
     print("Data Loading Complete")
     return df
 
+# This function will be called by the scheduler
+defrefresh_data():
+    global main_df
+    print("Refreshing data from archived CSVs...")
+    main_df = get_data_from_csvs()
+    print(f"Data refresh complete. {len(main_df)} rows loaded.")
+
 main_df= get_data_from_csvs()
 
 @app.route('/')

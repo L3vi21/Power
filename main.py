@@ -3,7 +3,13 @@ import time
 import schedule
 
 from pull_data import pull_data, archive_old_metered_data_files  # Your polling function
-from app import app  # Your Flask app
+from app import app
+from app import app, refresh_data# Your Flask app
+
+def run_data_cycle():
+    pull_data()
+    archive_old_metered_data_files()
+    refresh_data()
 
 def start_scheduler():
     # Schedule every 10 minutes
@@ -13,7 +19,7 @@ def start_scheduler():
 
     #Running initial data pull at startup
     print("▶️ Running initial data pull")
-    pull_data()
+    run_data_cycle()
 
     while True:
         schedule.run_pending()
