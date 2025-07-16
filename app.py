@@ -26,6 +26,10 @@ def get_data_from_csvs():
     df_list= []
     for file in all_files:
         try:
+            if os.path.getsize(file) == 0:
+                print(f"Skipping empty file: {file}")
+                continue
+            
             df= pd.read_csv(file, header= 0)
 
             if 'Timestamp' not in df.columns:
@@ -33,8 +37,10 @@ def get_data_from_csvs():
                 print(f"Available columns: {df.columns.tolist()}")
                 continue
             
-            df['Timestamp'] = pd.to_datetime(df['Timestamp'], format='%Y/%m/%d %H:%M:%S %p', errors='coerce')
+            df['Timestamp'] = pd.to_datetime(df['Timestamp'], format='%Y-%m-%d %H:%M:%S %p', errors='coerce')
+            df.dropna(subset=['Timestamp'], inplace=True)
             df= df_list.append(df)
+            
         except Exception as e:
             print(f"Error reading {file}: {e}")
 
@@ -42,11 +48,11 @@ def get_data_from_csvs():
         print("No valid dataframes to concatenate.")
         return pd.DataFrame()
 
-    df = pd.concat(df_list, ignore_index=True)
-    df = df.sort_values(by='Timestamp')
+    combined_df = pd.concat(df_list, ignore_index=True)
+    combined_df = df.sort_values(by='Timestamp')
 
     print("Data Loading Complete")
-    return df
+    return combined_df
 
 # This function will be called by the scheduler
 def refresh_data():
