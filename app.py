@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 app= Flask(__name__)
 
 def get_data_from_csvs():
-    data_directory= "metered_data"
+    data_directory= "archived_data"
 
     if not os.path.exists(data_directory):
         print(f"WARNING: Data directory for {data_directory} not found")
