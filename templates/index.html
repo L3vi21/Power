@@ -3,230 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Equipment Monitoring Dashboard</title>
-
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Live Data Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.23.0/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <style>
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #2d3748
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #4a5568;
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #718096;
-        }
-        body {
-            background-color: #1a202c;
-            color: #e2e8f0;
-        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f4f7f6; color: #333; }
+        .container { max-width: 1200px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #0056b3; text-align: center; }
+        .filters { display: flex; justify-content: space-around; align-items: center; padding: 20px; margin-bottom: 20px; background-color: #e9ecef; border-radius: 8px; flex-wrap: wrap; gap: 15px; }
+        .filters select, .filters input { padding: 10px; border-radius: 5px; border: 1px solid #ccc; font-size: 16px; }
+        .chart-container { position: relative; height: 60vh; width: 100%; }
     </style>
 </head>
-<body class="font-sans">
-    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
-        <header class="mb-8">
-            <h1 class="text-3x1 sm:text-4x1 font-bold text-white tracking-tight">Equipment Monitoring Dashboard</h1>
-            <p class="text-gray-400 mt-1">Powered by Flask and Chart.js</p>
-        </header>
-        <!--Main Grid-->
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <!--Controls Panel-->
-            <aside class="lg:col-span-1 bg-gray-800 p-6 rounded-x1 shadow-lg h-fit">
-                <h2 class="text-xl font-semibold mb-6 border-b border-gray-700 pb-3 text-white">Filters</h2>
-                <div class="space-y-6">
-                    <!--Equipment Selector-->
-                    <div>
-                        <label for="equipment-filter" class="block text-sm font-medium text-gray-300 mb-2">Equipment</label>
-                        <select id="equipment-filter" class="w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <!--Options will be populated by JavaScript-->
-                        </select> 
-                    </div>
-                    <!--Register Selector-->
-                    <div>
-                        <label for="register-filter" class="block text-sm font-medium text-gray-300 mb-2">Data / Register</label>
-                        <select id="register-filter" class="w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <!--Options will be populated by JavaScript-->
-                        </select>
-                    </div>
-                    <!--Date Range-->
-                    <div>
-                        <label  class="block text-sm font-medium text-gray-300 mb-2">Date Range</label>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <input type="date" id="start-date" class="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                            <input type="date" id="end-date" class="w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        </div>
-                    </div>
-                </div>
-            </aside>
-
-            <!--Main Container-->
-            <main class="lg:col-span-3 space-y-6">
-                <!--Chart Container-->
-                <div class="bg-gray-800 p-4 sm:p-6 rounded-x1 shadow-lg">
-                    <div id="loading-indicator" class="text-center p-8">Loading Chart...</div>
-                    <canvas id="data_chart" style="display: none;"></canvas>
-                </div>
-
-                <!--Data Table Container-->
-                <div class="bg-gray-800 p-4 sm:p-6 rounded-xl shadow-lg">
-                    <h3 class="text-lg font-semibold text-white mb-4">Raw Data</h3>
-                    <div id="table-container" class="max-h-96 overflow-y-auto">
-                        <table class="w-full text-sm text-left text-gray-300">
-                            <thead class="text-xs text-gray-400 uppercase bg-gray-700 sticky top-0">
-                                <tr>
-                                    <th scope="col" class="px-4 py-3">Timestamp</th>
-                                    <th scope="col" class="px-4 py-3">Equipment</th>
-                                    <th scope="col" class="px-4 py-3">Register Name</th>
-                                    <th scope="col" class="px-4 py-3">Value</th>
-                                </tr>
-                            </thead>
-                            <tbody id="data-table-body">
-                                <!--Populated by JS-->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </main>
+<body>
+    <div class="container">
+        <h1>Live Data Dashboard</h1>
+        <div class="filters">
+            <select id="equipmentFilter"></select>
+            <select id="registerFilter"></select>
+            <input type="date" id="startDate">
+            <input type="date" id="endDate">
+        </div>
+        <div class="chart-container">
+            <canvas id="myChart"></canvas>
         </div>
     </div>
-    
-    <script>
-        // Global variable to hold the chart instance so we can update it
-        let data_chart;
 
-        // This function runs when the page loads to fill the dropdowns
-        async function populateFilters() {
+    <script>
+        let myChart;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeFilters();
+            setupEventListeners();
+            const ctx = document.getElementById('myChart').getContext('2d');
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets: [] },
+                options: {
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'minute', // Default unit
+                                tooltipFormat: 'yyyy-MM-dd HH:mm:ss'
+                            },
+                            title: { display: true, text: 'Timestamp' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Value' }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        });
+
+        async function initializeFilters() {
             try {
                 const response = await fetch('/api/filters');
-                const data = await response.json();
-
-                const equipmentSelect = document.getElementById('equipment-filter');
-                equipmentSelect.innerHTML = '<option>All Equipment</option>';
-                data.equipments.forEach(eq => {
-                    equipmentSelect.innerHTML += `<option>${eq}</option>`;
-                });
-
-                const registerSelect = document.getElementById('register-filter');
-                registerSelect.innerHTML = '<option>All Registers</option>';
-                data.registers.forEach(reg => {
-                    registerSelect.innerHTML += `<option>${reg}</option>`;
-                });
+                const filters = await response.json();
+                populateDropdown('equipmentFilter', ['All Equipment', ...filters.equipments]);
+                populateDropdown('registerFilter', ['All Registers', ...filters.registers]);
             } catch (error) {
-                console.error("Error populating filters:", error);
+                console.error("Could not initialize filters:", error);
             }
         }
 
-        // This function runs when you click the "Update" button
-        async function updateDashboard() {
-            const equipment = document.getElementById('equipment-filter').value;
-            const register = document.getElementById('register-filter').value;
-            const startDate = document.getElementById('start-date').value;
-            const endDate = document.getElementById('end-date').value;
+        function populateDropdown(elementId, items) {
+            const select = document.getElementById(elementId);
+            select.innerHTML = '';
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item;
+                option.textContent = item;
+                select.appendChild(option);
+            });
+        }
 
-            // --- Helper function to clear the display ---
-            function clearDisplay() {
-                if (myChart) {
-                    myChart.destroy(); // Clear the chart
-                }
-                const tableBody = document.querySelector("#data-table tbody");
-                tableBody.innerHTML = '<tr><td colspan="4">Please select specific equipment and a register to display data.</td></tr>'; // Clear the table and show a message
-            }
+        function setupEventListeners() {
+            document.getElementById('equipmentFilter').addEventListener('change', fetchChartData);
+            document.getElementById('registerFilter').addEventListener('change', fetchChartData);
+            document.getElementById('startDate').addEventListener('change', fetchChartData);
+            document.getElementById('endDate').addEventListener('change', fetchChartData);
+        }
 
-            // NEW: Check if the user has made a specific selection.
-            if (equipment === 'All Equipment' || register === 'All Registers') {
-                clearDisplay();
-                return; // Stop here if no specific selection is made.
-            }
+        // --- THIS FUNCTION HAS BEEN CORRECTED ---
+        async function fetchChartData() {
+            // Correctly get all four values from the filter controls
+            const equipment = document.getElementById('equipmentFilter').value;
+            const register = document.getElementById('registerFilter').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
 
-            // Build the URL to call the API
-            const url = new URL('/api/data', window.location.origin);
-            url.searchParams.append('equipment', equipment);
-            url.searchParams.append('register', register);
-            if (startDate) url.searchParams.append('startDate', startDate);
-            if (endDate) url.searchParams.append('endDate', endDate);
+            // Build the URL with the correct, URL-encoded values
+            const url = `/api/data?equipment=${encodeURIComponent(equipment)}&register=${encodeURIComponent(register)}&startDate=${startDate}&endDate=${endDate}`;
 
             try {
                 const response = await fetch(url);
                 if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
+                updateChart(data);
+            } catch (error) {
+                console.error("Could not fetch chart data:", error);
+            }
+        }
 
-                // If the API returns no data for the selection, clear the display
-                if (data.length === 0) {
-                    clearDisplay();
-                    return;
-                }
+        function updateChart(data) {
+            if (!myChart) return;
 
-                // --- Update the Chart ---
-                const labels = data.map(item => item.Timestamp);
-                const values = data.map(item => item.Value);
+            // Clear previous data
+            myChart.data.labels = [];
+            myChart.data.datasets = [];
 
-                const ctx = document.getElementById('myChart').getContext('2d');
-                if (myChart) {
-                    myChart.destroy();
-                }
-                myChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                    labels: labels,
-                        datasets: [{
-                            label: `Value for ${register}`,
-                            data: values,
-                            borderColor: 'rgb(75, 192, 192)',
-                            tension: 0.1
-                        }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false }
+            if (data.length > 0) {
+                const points = data.map(d => ({ x: new Date(d.Timestamp), y: d.Value }));
+                myChart.data.datasets.push({
+                    label: `${data[0].Description} - ${data[0].Register_Name}`,
+                    data: points,
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1,
+                    fill: false,
+                    pointRadius: 2, // Smaller points for clarity
+                    pointHoverRadius: 5
                 });
 
-        // --- Update the Table ---
-        const tableBody = document.querySelector("#data-table tbody");
-        tableBody.innerHTML = '';
-        data.forEach(row => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${row.Timestamp}</td>
-                <td>${row.Description}</td>
-                <td>${row.Register_Name}</td>
-                <td>${row.Value.toFixed(2)}</td>
-            `;
-            tableBody.appendChild(tr);
-        });
+                // Dynamically adjust time unit based on data range
+                const timeRange = new Date(data[data.length - 1].Timestamp).getTime() - new Date(data[0].Timestamp).getTime();
+                const days = timeRange / (1000 * 60 * 60 * 24);
+                let unit = 'minute';
+                if (days > 30) unit = 'day';
+                else if (days > 7) unit = 'hour';
+                myChart.options.scales.x.time.unit = unit;
 
-    } catch (error) {
-        console.error("Could not fetch or display data:", error);
-        alert("Error: Unable to display data. Check the console for details.");
-    }
-}
-
-
-        // This runs once after the page has fully loaded
-        document.addEventListener('DOMContentLoaded', () => {
-            populateFilters();
-
-            // Set default dates to the last 7 days
-            const today = new Date();
-            const pastDate = new Date();
-            pastDate.setDate(today.getDate() - 7);
-            document.getElementById('end-date').value = today.toISOString().split('T')[0];
-            document.getElementById('start-date').value = pastDate.toISOString().split('T')[0];
-
-            updateDashboard(); // Load the initial view
-
-            // Add event listener to your button
-            document.getElementById('update-button').addEventListener('click', updateDashboard);
-        });
+            }
+            myChart.update();
+        }
     </script>
-
 </body>
 </html>
-
-
