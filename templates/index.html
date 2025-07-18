@@ -3,159 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Data Dashboard</title>
+    <title>Substation Data Visualization</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.23.0/cdn.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #0056b3; color: #333; }
-        .container { max-width: 1200px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { color: #0056b3; text-align: center; }
-        .filters { display: flex; justify-content: space-around; align-items: center; padding: 20px; margin-bottom: 20px; background-color: #e9ecef; border-radius: 8px; flex-wrap: wrap; gap: 15px; }
-        .filters select, .filters input { padding: 10px; border-radius: 5px; border: 1px solid #ccc; font-size: 16px; }
-        .chart-container { position: relative; height: 60vh; width: 100%; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        .controls {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .controls label {
+            margin: 0 15px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .controls input[type="checkbox"] {
+            margin-right: 5px;
+        }
+        .chart-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            padding: 10px;
+        }
+        .chart-wrapper {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        /* Initially hide the chart wrappers */
+        .chart-wrapper.hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Live Data Dashboard</h1>
-        <div class="filters">
-            <select id="equipmentFilter"></select>
-            <select id="registerFilter"></select>
-            <input type="date" id="startDate">
-            <input type="date" id="endDate">
-        </div>
-        <div class="chart-container">
-            <canvas id="myChart"></canvas>
-        </div>
+
+    <div class="header">
+        <h1>Substation Data Graphs</h1>
+        <p>Use the checkboxes to show or hide the graphs.</p>
     </div>
 
+    <div class="controls">
+        <label>
+            <input type="checkbox" id="toggleChart1" onchange="toggleChart('chart1Wrapper', 'myChart1', 'chart1Data', this.checked)">
+            Show Power Factor Graph
+        </label>
+        <label>
+            <input type="checkbox" id="toggleChart2" onchange="toggleChart('chart2Wrapper', 'myChart2', 'chart2Data', this.checked)">
+            Show Voltage Graph
+        </label>
+        </div>
+
+    <div class="chart-container">
+        <div id="chart1Wrapper" class="chart-wrapper hidden">
+            <canvas id="myChart1"></canvas>
+        </div>
+        <div id="chart2Wrapper" class="chart-wrapper hidden">
+            <canvas id="myChart2"></canvas>
+        </div>
+        </div>
+
     <script>
-        let myChart;
+        // This line injects the data from your Flask backend into JavaScript.
+        // Your Flask route should pass a dictionary of data like:
+        // graph_data = {
+        //   "chart1Data": {"labels": [...], "values": [...]},
+        //   "chart2Data": {"labels": [...], "values": [...]},
+        // }
+        // The |tojson filter is crucial for safely converting the data.
+        const allGraphData = {{ graph_data|tojson }};
 
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeFilters();
-            setupEventListeners();
-            const ctx = document.getElementById('myChart').getContext('2d');
-            myChart = new Chart(ctx, {
-                type: 'line',
-                data: { datasets: [] },
+        // This object will hold the active Chart.js instances
+        const activeCharts = {};
+
+        function createChart(canvasId, data, label, color) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            // If a chart already exists on this canvas, destroy it first
+            if (activeCharts[canvasId]) {
+                activeCharts[canvasId].destroy();
+            }
+
+            // Create the new chart
+            activeCharts[canvasId] = new Chart(ctx, {
+                type: 'line', // You can change this to 'bar', 'pie', etc.
+                data: {
+                    labels: data.labels, // X-axis labels (e.g., timestamps)
+                    datasets: [{
+                        label: label, // Legend label
+                        data: data.values, // Y-axis data points
+                        borderColor: color,
+                        backgroundColor: color + '33', // Lighter version for area fill
+                        fill: true,
+                        tension: 0.1 // Makes the line slightly curved
+                    }]
+                },
                 options: {
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: 'minute', // Default unit
-                                tooltipFormat: 'yyyy-MM-dd HH:mm:ss'
-                            },
-                            title: { display: true, text: 'Timestamp' }
-                        },
-                        y: {
-                            title: { display: true, text: 'Value' }
-                        }
-                    },
-                    plugins: {
-                        legend: { position: 'top' },
-                        tooltip: { mode: 'index', intersect: false }
-                    },
                     responsive: true,
-                    maintainAspectRatio: false
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: {
+                            beginAtZero: false
+                        }
+                    }
                 }
             });
-        });
-
-        async function initializeFilters() {
-            try {
-                const response = await fetch('/api/filters');
-                const filters = await response.json();
-                populateDropdown('equipmentFilter', ['All Equipment', ...filters.equipments]);
-                populateDropdown('registerFilter', ['All Registers', ...filters.registers]);
-            } catch (error) {
-                console.error("Could not initialize filters:", error);
-            }
         }
 
-        function populateDropdown(elementId, items) {
-            const select = document.getElementById(elementId);
-            select.innerHTML = '';
-            items.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item;
-                option.textContent = item;
-                select.appendChild(option);
-            });
-        }
+        function toggleChart(wrapperId, canvasId, dataKey, isVisible) {
+            const wrapper = document.getElementById(wrapperId);
 
-        function setupEventListeners() {
-            document.getElementById('equipmentFilter').addEventListener('change', fetchChartData);
-            document.getElementById('registerFilter').addEventListener('change', fetchChartData);
-            document.getElementById('startDate').addEventListener('change', fetchChartData);
-            document.getElementById('endDate').addEventListener('change', fetchChartData);
-        }
-
-        // --- THIS FUNCTION HAS BEEN CORRECTED ---
-        async function fetchChartData() {
-            // Correctly get all four values from the filter controls
-            const equipment = document.getElementById('equipmentFilter').value;
-            const register = document.getElementById('registerFilter').value;
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
-
-            // Build the URL with the correct, URL-encoded values
-            const url = `/api/data?equipment=${encodeURIComponent(equipment)}&register=${encodeURIComponent(register)}&startDate=${startDate}&endDate=${endDate}`;
-
-            try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json();
-                console.log("Fetched data sample:", data.slice(0, 5));
-                updateChart(data);
-            } catch (error) {
-                console.error("Could not fetch chart data:", error);
-            }
-        }
-
-        function updateChart(data) {
-            if (!myChart) return;
-
-            myChart.data.datasets = [];
-
-            if (data && data.length > 0) {
-                const points = data.map(d => ({x: dateFns.parse(d.Timestamp, 'yyyy-MM-dd HH:mm:ss', new Date()), y: d.Value}));
-
-                let chartLabel;
-
-                if (data[0].Description && data[0].Register_Name) {
-                    chartLabel= `${data[0].Description} - ${data[0].Register_Name}`
-                }
-                else {
-                const equipmentLabel= document.getElementById('equipmentFilter').value;
-                const registerLabel= document.getElementById('registerFilter').value;
+            if (isVisible) {
+                // Show the container and create the chart
+                wrapper.classList.remove('hidden');
+                const chartData = allGraphData[dataKey];
+                
+                // Customize label and color based on dataKey
+                let label = 'Data';
+                let color = '#3498db'; // Default color
+                if (dataKey === 'chart1Data') {
+                    label = 'Power Factor';
+                    color = '#2ecc71';
+                } else if (dataKey === 'chart2Data') {
+                    label = 'Average Voltage';
+                    color = '#e74c3c';
                 }
 
-                myChart.data.datasets.push({
-                    label: chartLabel,
-                    data: points,
-                    borderColor: 'rgb(75, 192, 192)',
-                    tension: 0.1,
-                    fill: false,
-                    pointRadius: 2, // Smaller points for clarity
-                    pointHoverRadius: 5
-                });
-
-                // Dynamically adjust time unit based on data range
-                const timeRange = points[points.length - 1].x.getTime() - points[0].x.getTime();
-                const days = timeRange / (1000 * 60 * 60 * 24);
-                let unit = 'minute';
-                if (days > 30) unit = 'day';
-                else if (days > 7) unit = 'hour';
-                myChart.options.scales.x.time.unit = unit;
-
+                if (chartData) {
+                    createChart(canvasId, chartData, label, color);
+                } else {
+                    console.error('No data found for key:', dataKey);
+                }
+            } else {
+                // Hide the container and destroy the chart to free up memory
+                wrapper.classList.add('hidden');
+                if (activeCharts[canvasId]) {
+                    activeCharts[canvasId].destroy();
+                    delete activeCharts[canvasId]; // Remove from active charts object
+                }
             }
-            myChart.update();
         }
     </script>
+
 </body>
 </html>
