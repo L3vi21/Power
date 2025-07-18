@@ -100,7 +100,8 @@ def get_chart_data():
         filtered_df = main_df.copy()
         
         # Apply the specific filters
-        filtered_df = filtered_df[(filtered_df['Description'] == equipment) & (filtered_df['Register_Name'] == register)]
+        mask = (filtered_df['Description'] == equipment) & (filtered_df['Register_Name'] == register)
+        filtered_df = filtered_df[mask]
         
         # Handle date filtering
         if start_date_str:
@@ -110,26 +111,6 @@ def get_chart_data():
         if end_date_str:
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d') + timedelta(days=1)
             filtered_df = filtered_df[filtered_df['Timestamp'] < end_date]
-
-        if not filtered_df.empty:
-            df_to_resample = filtered_df.set_index('Timestamp')
-            
-            time_delta = df_to_resample.index.max() - df_to_resample.index.min()
-            
-            rule = None
-            if time_delta > timedelta(days=30):
-                rule = 'D'  # Daily average
-            elif time_delta > timedelta(days=7):
-                rule = 'H'  # Hourly average
-            elif time_delta > timedelta(days=1):
-                rule = 'T'  # Minutely average
-                
-            if rule:
-                print(f"DEBUG: Resampling data with rule: {rule}")
-                resampled_df = df_to_resample['Value'].resample(rule).mean().reset_index()
-                resampled_df['Description'] = equipment
-                resampled_df['Register_Name'] = register
-                filtered_df = resampled_df
 
         print(f"DEBUG: Returning {len(filtered_df)} rows for {equipment} | {register}.")
         return jsonify(filtered_df.to_dict(orient='records'))
