@@ -3,6 +3,7 @@ import pandas as pd
 import glob
 import os
 from datetime import datetime, timedelta
+import traceback
 
 app= Flask(__name__)
 
@@ -18,9 +19,6 @@ def get_data_from_csvs():
     archive_pattern= os.path.join(archive_directory,'**','*.csv')
     live_pattern = os.path.join(live_data_directory,'*.csv')
     all_files = glob.glob(archive_pattern, recursive=True) + glob.glob(live_pattern)
-    
-    #Debugging print
-    #print(f"Here are the files:{all_files}")
     
     if not all_files:
         print("Warning: No .csv files found.")
@@ -60,7 +58,7 @@ def get_data_from_csvs():
 # This function will be called by the scheduler
 def refresh_data():
     global main_df
-    print("Refreshing data from archived CSVs...")
+    print("Refreshing data from CSVs...")
     main_df = get_data_from_csvs()
     print(f"Data refresh complete. {len(main_df)} rows loaded.")
 
@@ -85,69 +83,63 @@ def get_filters():
         'registers': sorted(registers)
     })
 
-# In app.py
-
 @app.route('/api/data')
 def get_chart_data():
-    equipment = request.args.get('equipment')
-    register = request.args.get('register')
-    start_date_str = request.args.get('startDate')
-    end_date_str = request.args.get('endDate') 
+    try:
+        equipment = request.args.get('equipment')
+        register = request.args.get('register')
+        start_date_str = request.args.get('startDate')
+        end_date_str = request.args.get('endDate') 
 
-    # NEW: Check if specific filters have been applied.
-    # If not, return an empty list to prevent sending too much data.
-    if not equipment or equipment == 'All Equipment' or not register or register == 'All Registers':
-        print("DEBUG: No specific equipment/register selected. Returning empty list to prevent browser overload.")
-        return jsonify([])
+        if not equipment or not register:
+            return jsonify({"error": "Equipment and Register parameters are required."}), 400
 
-    # If specific filters ARE provided, proceed as normal.
-    if main_df.empty:
-        return jsonify([])
-        
-    filtered_df = main_df.copy()
-    
-    # Apply the specific filters that are now required
-    filtered_df = filtered_df[(filtered_df['Description'] == equipment) & (filtered_df['Register_Name'] == register)]
-    
-    start_date= None
-    if start_date_str:
-        start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
-        filtered_df = filtered_df[filtered_df['Timestamp'] >= start_date] 
-
-    end_date = None
-    if end_date_str:
-        end_date = datetime.strptime(end_date_str, '%Y-%m-%d') + timedelta(days=1)
-        filtered_df = filtered_df[filtered_df['Timestamp'] < end_date]
-
-    if not filtered_df.empty:
-        # Set the Timestamp as the index for resampling
-        df_to_resample = filtered_df.set_index('Timestamp')
-        
-        # Determine the time range to decide on a resampling rule
-        time_delta = (df_to_resample.index.max() - df_to_resample.index.min()) if start_date and end_date else timedelta(days=0)
-        
-        # Define a resampling rule based on the time delta
-        if time_delta > timedelta(days=30):
-            rule = 'D'  # Daily average
-        elif time_delta > timedelta(days=7):
-            rule = 'H'  # Hourly average
-        elif time_delta > timedelta(days=1):
-            rule = 'T'  # Minutely average
-        else:
-            rule = None # No resampling for short periods
+        if main_df.empty:
+            return jsonify([])
             
-        if rule:
-            print(f"DEBUG: Resampling data with rule: {rule}")
-            # Resample the 'Value' column, then reset the index to get 'Timestamp' back as a column
-            resampled_df = df_to_resample['Value'].resample(rule).mean().reset_index()
-            # Since resampling might remove other columns, we'll just send what's necessary for the chart
-            # Or, you could merge back other relevant info if needed. For now, this is simpler.
-            resampled_df['Description'] = equipment
-            resampled_df['Register_Name'] = register
-            filtered_df = resampled_df
+        filtered_df = main_df.copy()
+        
+        # Apply the specific filters
+        filtered_df = filtered_df[(filtered_df['Description'] == equipment) & (filtered_df['Register_Name'] == register)]
+        
+        # Handle date filtering
+        if start_date_str:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            filtered_df = filtered_df[filtered_df['Timestamp'] >= start_date] 
 
-    print(f"DEBUG: Returning {len(filtered_df)} rows for specific selection.")
-    return jsonify(filtered_df.to_dict(orient='records'))
+        if end_date_str:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d') + timedelta(days=1)
+            filtered_df = filtered_df[filtered_df['Timestamp'] < end_date]
+
+        if not filtered_df.empty:
+            df_to_resample = filtered_df.set_index('Timestamp')
+            
+            time_delta = df_to_resample.index.max() - df_to_resample.index.min()
+            
+            rule = None
+            if time_delta > timedelta(days=30):
+                rule = 'D'  # Daily average
+            elif time_delta > timedelta(days=7):
+                rule = 'H'  # Hourly average
+            elif time_delta > timedelta(days=1):
+                rule = 'T'  # Minutely average
+                
+            if rule:
+                print(f"DEBUG: Resampling data with rule: {rule}")
+                resampled_df = df_to_resample['Value'].resample(rule).mean().reset_index()
+                resampled_df['Description'] = equipment
+                resampled_df['Register_Name'] = register
+                filtered_df = resampled_df
+
+        print(f"DEBUG: Returning {len(filtered_df)} rows for {equipment} | {register}.")
+        return jsonify(filtered_df.to_dict(orient='records'))
+
+    except Exception as e:
+        # Log the full error to the server console for debugging
+        print(f"An error occurred in /api/data: {e}")
+        traceback.print_exc()
+        # Return a JSON error response to the client
+        return jsonify({"error": "An internal server error occurred.", "message": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
