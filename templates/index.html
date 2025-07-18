@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js for graphing -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <!-- Flatpickr for a better date picking experience -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -106,7 +107,7 @@
 
     <!-- Template for a single graph card -->
     <template id="graph-card-template">
-        <div class="bg-white rounded-lg shadow-md p-6 flex flex-col h-full">
+        <div class="graph-card bg-white rounded-lg shadow-md p-6 flex flex-col h-full">
             <!-- Card Header -->
             <div class="flex justify-between items-start mb-4">
                 <div>
@@ -172,54 +173,49 @@
             let dateRangePicker;
 
             // --- Initialization ---
-            const init = async () => {
-                // Initialize Flatpickr
+            const init = () => {
                 dateRangePicker = flatpickr("#date-range", {
                     mode: "range",
                     dateFormat: "Y-m-d",
                 });
                 
-                // Fetch initial filter data
-                await populateFilters();
+                populateFilters();
 
-                // Add event listener for the main "Add Graph" button
                 addGraphBtn.addEventListener('click', handleAddGraph);
+                // Use event delegation for all actions on dynamically created cards
+                graphsContainer.addEventListener('click', handleCardActions);
             };
 
-            // --- Functions ---
-
             /**
-             * Fetches equipment and register lists from the API and populates the dropdowns.
+             * Handles all click events within the graphs container using event delegation.
+             * @param {MouseEvent} event - The click event.
              */
+            const handleCardActions = (event) => {
+                const removeBtn = event.target.closest('.remove-btn');
+                const toggleBtn = event.target.closest('.toggle-table-btn');
+
+                if (removeBtn) {
+                    removeCard(removeBtn);
+                } else if (toggleBtn) {
+                    toggleDataTable(toggleBtn);
+                }
+            };
+
             const populateFilters = async () => {
                 try {
                     const response = await fetch('/api/filters');
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                     const data = await response.json();
 
-                    // Populate Equipment Select
-                    equipmentSelect.innerHTML = ''; // Clear loading text
-                    if (data.equipments && data.equipments.length > 0) {
-                        data.equipments.forEach(equip => {
-                            const option = document.createElement('option');
-                            option.value = equip;
-                            option.textContent = equip;
-                            equipmentSelect.appendChild(option);
-                        });
-                    } else {
-                        equipmentSelect.innerHTML = '<option>No equipment found</option>';
-                    }
+                    equipmentSelect.innerHTML = '<option value="">Select Equipment</option>';
+                    data.equipments.forEach(equip => {
+                        equipmentSelect.add(new Option(equip, equip));
+                    });
 
-                    // Populate Register Select
-                    registerSelect.innerHTML = ''; // Clear loading text
-                     if (data.registers && data.registers.length > 0) {
-                        data.registers.forEach(reg => {
-                            const option = new Option(reg, reg);
-                            registerSelect.add(option);
-                        });
-                    } else {
-                        registerSelect.innerHTML = '<option>No registers found</option>';
-                    }
+                    registerSelect.innerHTML = '<option value="">Select Register</option>';
+                    data.registers.forEach(reg => {
+                        registerSelect.add(new Option(reg, reg));
+                    });
 
                 } catch (error) {
                     console.error("Failed to fetch filters:", error);
@@ -228,9 +224,6 @@
                 }
             };
 
-            /**
-             * Handles the click event for the "Add Graph" button.
-             */
             const handleAddGraph = () => {
                 const equipment = equipmentSelect.value;
                 const register = registerSelect.value;
@@ -246,22 +239,14 @@
                 createGraphCard(equipment, register, startDate, endDate);
             };
 
-            /**
-             * Creates and appends a new graph card to the dashboard.
-             * @param {string} equipment - The selected equipment.
-             * @param {string} register - The selected register.
-             * @param {string} startDate - The start date for the data query.
-             * @param {string} endDate - The end date for the data query.
-             */
             const createGraphCard = async (equipment, register, startDate, endDate) => {
                 noGraphsPlaceholder.classList.add('hidden');
 
                 const cardId = `card-${Date.now()}`;
                 const cardClone = graphCardTemplate.content.cloneNode(true);
-                const cardElement = cardClone.querySelector('.bg-white');
+                const cardElement = cardClone.querySelector('.graph-card'); // Use the new specific class
                 cardElement.id = cardId;
 
-                // Set card title and subtitle
                 cardElement.querySelector('.card-title').textContent = register;
                 cardElement.querySelector('.card-subtitle').textContent = equipment;
 
@@ -270,10 +255,7 @@
                 const newCard = document.getElementById(cardId);
 
                 try {
-                    // Fetch data for the new chart
                     const chartData = await fetchChartData(equipment, register, startDate, endDate);
-                    
-                    // Hide loading overlay
                     newCard.querySelector('.loading-overlay').classList.add('hidden');
 
                     if (chartData.length === 0) {
@@ -281,61 +263,40 @@
                         return;
                     }
 
-                    // Render the chart
                     renderChart(newCard, chartData);
-                    
-                    // Populate the data table
                     populateDataTable(newCard, chartData);
-
-                    // Add event listeners for card-specific buttons
-                    newCard.querySelector('.remove-btn').addEventListener('click', removeCard);
-                    newCard.querySelector('.toggle-table-btn').addEventListener('click', (e) => toggleDataTable(e, newCard));
 
                 } catch (error) {
                     console.error("Error creating graph card:", error);
-                    displayErrorMessage(newCard);
+                    displayErrorMessage(newCard, error.message);
                 }
             };
             
-            /**
-             * Fetches data from the API endpoint.
-             */
             const fetchChartData = async (equipment, register, startDate, endDate) => {
-                const params = new URLSearchParams({
-                    equipment,
-                    register,
-                    startDate,
-                    endDate
-                });
+                const params = new URLSearchParams({ equipment, register, startDate, endDate });
                 const response = await fetch(`/api/data?${params.toString()}`);
+                const data = await response.json();
                 if (!response.ok) {
-                    throw new Error(`Failed to fetch data: ${response.statusText}`);
+                    const errorMessage = data.message || data.error || `Failed to fetch data: ${response.statusText}`;
+                    throw new Error(errorMessage);
                 }
-                return await response.json();
+                return data;
             };
 
-            /**
-             * Renders a chart inside a given card element.
-             */
             const renderChart = (cardElement, data) => {
                 const ctx = cardElement.querySelector('.chart-canvas').getContext('2d');
                 const cardId = cardElement.id;
 
-                const labels = data.map(d => new Date(d.Timestamp).toLocaleString());
-                const values = data.map(d => d.Value);
+                const chartData = data.map(d => ({ x: new Date(d.Timestamp), y: d.Value }));
 
-                // Destroy previous chart instance if it exists
-                if (chartInstances[cardId]) {
-                    chartInstances[cardId].destroy();
-                }
+                if (chartInstances[cardId]) chartInstances[cardId].destroy();
 
                 chartInstances[cardId] = new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: labels,
                         datasets: [{
                             label: cardElement.querySelector('.card-title').textContent,
-                            data: values,
+                            data: chartData,
                             borderColor: 'rgb(79, 70, 229)',
                             backgroundColor: 'rgba(79, 70, 229, 0.1)',
                             borderWidth: 2,
@@ -350,41 +311,23 @@
                         maintainAspectRatio: false,
                         scales: {
                             x: {
-                                ticks: {
-                                    maxRotation: 0,
-                                    autoSkip: true,
-                                    maxTicksLimit: 10
-                                }
+                                type: 'time',
+                                time: { unit: 'day' },
+                                grid: { display: false }
                             },
-                            y: {
-                                beginAtZero: false
-                            }
+                            y: { beginAtZero: false }
                         },
-                        plugins: {
-                            legend: {
-                                display: false
-                            },
-                            tooltip: {
-                                mode: 'index',
-                                intersect: false,
-                            }
-                        },
-                        interaction: {
-                            mode: 'index',
-                            intersect: false,
-                        },
+                        plugins: { legend: { display: false } }
                     }
                 });
             };
 
-            /**
-             * Populates the raw data table within a card.
-             */
             const populateDataTable = (cardElement, data) => {
                 const tableBody = cardElement.querySelector('tbody');
-                tableBody.innerHTML = ''; // Clear existing data
+                if (!tableBody) return;
+                tableBody.innerHTML = '';
                 if (data.length === 0) {
-                    tableBody.innerHTML = '<tr><td colspan="2" class="text-center p-4 text-slate-500">No data available for this selection.</td></tr>';
+                    tableBody.innerHTML = '<tr><td colspan="2" class="text-center p-4 text-slate-500">No data available.</td></tr>';
                     return;
                 }
                 const rowsHtml = data.map(row => `
@@ -396,44 +339,32 @@
                 tableBody.innerHTML = rowsHtml;
             };
 
-            /**
-             * Toggles the visibility of the data table in a card.
-             */
-            const toggleDataTable = (event, cardElement) => {
+            const toggleDataTable = (buttonElement) => {
+                const cardElement = buttonElement.closest('.graph-card');
+                if (!cardElement) return;
                 const tableContainer = cardElement.querySelector('.data-table-container');
-                const button = event.currentTarget;
                 const isHidden = tableContainer.classList.toggle('hidden');
-                button.textContent = isHidden ? 'Show Raw Data' : 'Hide Raw Data';
+                buttonElement.textContent = isHidden ? 'Show Raw Data' : 'Hide Raw Data';
             };
 
-            /**
-             * Removes a card from the dashboard based on the click event.
-             * @param {MouseEvent} event The click event from the remove button.
-             */
-            const removeCard = (event) => {
-                const cardElement = event.currentTarget.closest('.bg-white');
+            const removeCard = (buttonElement) => {
+                const cardElement = buttonElement.closest('.graph-card');
                 if (!cardElement) return;
 
                 const cardId = cardElement.id;
                 
-                // Destroy the chart instance to free up memory
                 if (chartInstances[cardId]) {
                     chartInstances[cardId].destroy();
                     delete chartInstances[cardId];
                 }
 
-                // Remove the card from the DOM
                 cardElement.remove();
 
-                // Show the placeholder if no graphs are left
                 if (graphsContainer.children.length === 0) {
                     noGraphsPlaceholder.classList.remove('hidden');
                 }
             };
             
-            /**
-             * Displays a "No Data" message in the chart area.
-             */
             const displayNoDataMessage = (cardElement) => {
                 const chartArea = cardElement.querySelector('.relative');
                 chartArea.innerHTML = `
@@ -448,10 +379,7 @@
                     </div>`;
             };
 
-            /**
-             * Displays an error message in the chart area.
-             */
-            const displayErrorMessage = (cardElement) => {
+            const displayErrorMessage = (cardElement, message) => {
                 const chartArea = cardElement.querySelector('.relative');
                 chartArea.innerHTML = `
                     <div class="flex items-center justify-center h-full text-center text-red-500 p-4">
@@ -459,13 +387,12 @@
                              <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                              </svg>
-                            <p class="mt-2 font-medium">Failed to load chart</p>
-                            <p class="text-sm">Please check the console for errors.</p>
+                            <p class="mt-2 font-medium">Failed to Load Chart</p>
+                            <p class="text-sm">${message}</p>
                         </div>
                     </div>`;
             };
 
-            // --- Start the application ---
             init();
         });
     </script>
