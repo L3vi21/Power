@@ -111,9 +111,13 @@ def get_chart_data():
         if end_date_str:
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d') + timedelta(days=1)
             filtered_df = filtered_df[filtered_df['Timestamp'] < end_date]
+        
+        # **FIX:** Replace NaN with None for valid JSON conversion
+        # This prevents the "Unexpected token 'N'" error on the frontend.
+        cleaned_df = filtered_df.where(pd.notna(filtered_df), None)
 
-        print(f"DEBUG: Returning {len(filtered_df)} rows for {equipment} | {register}.")
-        return jsonify(filtered_df.to_dict(orient='records'))
+        print(f"DEBUG: Returning {len(cleaned_df)} rows for {equipment} | {register}.")
+        return jsonify(cleaned_df.to_dict(orient='records'))
 
     except Exception as e:
         # Log the full error to the server console for debugging
