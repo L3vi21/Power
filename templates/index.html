@@ -3,165 +3,463 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Substation Data Visualization</title>
+    <title>Data Visualization Dashboard</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js for graphing -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Flatpickr for a better date picking experience -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <!-- Custom Styles -->
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f4f7f6;
-            color: #333;
+            background-color: #f1f5f9; /* slate-100 */
+            font-family: 'Inter', sans-serif;
         }
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
+        /* Custom scrollbar for a cleaner look */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
         }
-        h1 {
-            color: #2c3e50;
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
         }
-        .controls {
-            text-align: center;
-            margin-bottom: 30px;
-            padding: 15px;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 4px;
         }
-        .controls label {
-            margin: 0 15px;
-            font-size: 16px;
-            cursor: pointer;
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
         }
-        .controls input[type="checkbox"] {
-            margin-right: 5px;
-        }
-        .chart-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-            gap: 20px;
-            padding: 10px;
-        }
-        .chart-wrapper {
+        .flatpickr-calendar {
             background-color: #ffffff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        /* Initially hide the chart wrappers */
-        .chart-wrapper.hidden {
-            display: none;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
         }
     </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
+<body class="antialiased text-slate-700">
 
-    <div class="header">
-        <h1>Substation Data Graphs</h1>
-        <p>Use the checkboxes to show or hide the graphs.</p>
-    </div>
+    <!-- Header -->
+    <header class="bg-white shadow-md sticky top-0 z-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <h1 class="text-2xl font-bold text-slate-800">Energy Consumption Dashboard</h1>
+            <p class="text-sm text-slate-500">Visualize and analyze metered data.</p>
+        </div>
+    </header>
 
-    <div class="controls">
-        <label>
-            <input type="checkbox" id="toggleChart1" onchange="toggleChart('chart1Wrapper', 'myChart1', 'chart1Data', this.checked)">
-            Show Power Factor Graph
-        </label>
-        <label>
-            <input type="checkbox" id="toggleChart2" onchange="toggleChart('chart2Wrapper', 'myChart2', 'chart2Data', this.checked)">
-            Show Voltage Graph
-        </label>
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Controls for adding new graphs -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-slate-800">Add New Graph</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                <!-- Equipment Selector -->
+                <div>
+                    <label for="equipment-select" class="block text-sm font-medium text-slate-600 mb-1">Equipment</label>
+                    <select id="equipment-select" class="w-full p-2 border border-slate-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option>Loading...</option>
+                    </select>
+                </div>
+                <!-- Register Selector -->
+                <div>
+                    <label for="register-select" class="block text-sm font-medium text-slate-600 mb-1">Register</label>
+                    <select id="register-select" class="w-full p-2 border border-slate-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option>Loading...</option>
+                    </select>
+                </div>
+                <!-- Date Range Selector -->
+                <div>
+                    <label for="date-range" class="block text-sm font-medium text-slate-600 mb-1">Date Range</label>
+                    <input id="date-range" class="w-full p-2 border border-slate-300 rounded-md shadow-sm" placeholder="Select date range...">
+                </div>
+                <!-- Add Graph Button -->
+                <div class="mt-4 md:mt-0">
+                    <button id="add-graph-btn" class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                        </svg>
+                        Add Graph
+                    </button>
+                </div>
+            </div>
         </div>
 
-    <div class="chart-container">
-        <div id="chart1Wrapper" class="chart-wrapper hidden">
-            <canvas id="myChart1"></canvas>
+        <!-- Container for all graphs -->
+        <div id="graphs-container" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Graph cards will be inserted here by JavaScript -->
         </div>
-        <div id="chart2Wrapper" class="chart-wrapper hidden">
-            <canvas id="myChart2"></canvas>
+
+        <!-- Placeholder for when no graphs are present -->
+        <div id="no-graphs-placeholder" class="text-center py-16 px-8 bg-white rounded-lg shadow-md">
+             <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <h3 class="mt-2 text-lg font-medium text-slate-800">No graphs to display</h3>
+            <p class="mt-1 text-sm text-slate-500">Use the controls above to add a new graph to your dashboard.</p>
         </div>
+
+    </main>
+
+    <!-- Template for a single graph card -->
+    <template id="graph-card-template">
+        <div class="bg-white rounded-lg shadow-md p-6 flex flex-col h-full">
+            <!-- Card Header -->
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h3 class="card-title font-semibold text-lg text-slate-800"></h3>
+                    <p class="card-subtitle text-sm text-slate-500"></p>
+                </div>
+                <button class="remove-btn text-slate-400 hover:text-red-600 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </button>
+            </div>
+            <!-- Chart Canvas -->
+            <div class="relative flex-grow h-72">
+                 <div class="loading-overlay absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
+                    <div class="text-center">
+                        <svg class="animate-spin h-8 w-8 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <p class="mt-2 text-sm text-slate-600">Loading chart data...</p>
+                    </div>
+                </div>
+                <canvas class="chart-canvas"></canvas>
+            </div>
+            <!-- Card Footer / Actions -->
+            <div class="mt-4 pt-4 border-t border-slate-200">
+                 <button class="toggle-table-btn w-full text-sm font-medium text-indigo-600 hover:text-indigo-800">
+                    Show Raw Data
+                </button>
+            </div>
+            <!-- Data Table (hidden by default) -->
+            <div class="data-table-container hidden mt-4">
+                <div class="overflow-y-auto max-h-60 custom-scrollbar border border-slate-200 rounded-md">
+                    <table class="min-w-full divide-y divide-slate-200">
+                        <thead class="bg-slate-50 sticky top-0">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Timestamp</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Value</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-slate-200">
+                            <!-- Data rows will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
+    </template>
 
     <script>
-        // This line injects the data from your Flask backend into JavaScript.
-        // Your Flask route should pass a dictionary of data like:
-        // graph_data = {
-        //   "chart1Data": {"labels": [...], "values": [...]},
-        //   "chart2Data": {"labels": [...], "values": [...]},
-        // }
-        // The |tojson filter is crucial for safely converting the data.
-        const allGraphData = {{ graph_data|tojson }};
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const equipmentSelect = document.getElementById('equipment-select');
+            const registerSelect = document.getElementById('register-select');
+            const addGraphBtn = document.getElementById('add-graph-btn');
+            const graphsContainer = document.getElementById('graphs-container');
+            const noGraphsPlaceholder = document.getElementById('no-graphs-placeholder');
+            const graphCardTemplate = document.getElementById('graph-card-template');
 
-        // This object will hold the active Chart.js instances
-        const activeCharts = {};
+            // --- State ---
+            let chartInstances = {}; // Store chart objects by card ID
+            let dateRangePicker;
 
-        function createChart(canvasId, data, label, color) {
-            const ctx = document.getElementById(canvasId).getContext('2d');
-            
-            // If a chart already exists on this canvas, destroy it first
-            if (activeCharts[canvasId]) {
-                activeCharts[canvasId].destroy();
-            }
-
-            // Create the new chart
-            activeCharts[canvasId] = new Chart(ctx, {
-                type: 'line', // You can change this to 'bar', 'pie', etc.
-                data: {
-                    labels: data.labels, // X-axis labels (e.g., timestamps)
-                    datasets: [{
-                        label: label, // Legend label
-                        data: data.values, // Y-axis data points
-                        borderColor: color,
-                        backgroundColor: color + '33', // Lighter version for area fill
-                        fill: true,
-                        tension: 0.1 // Makes the line slightly curved
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    scales: {
-                        y: {
-                            beginAtZero: false
-                        }
-                    }
-                }
-            });
-        }
-
-        function toggleChart(wrapperId, canvasId, dataKey, isVisible) {
-            const wrapper = document.getElementById(wrapperId);
-
-            if (isVisible) {
-                // Show the container and create the chart
-                wrapper.classList.remove('hidden');
-                const chartData = allGraphData[dataKey];
+            // --- Initialization ---
+            const init = async () => {
+                // Initialize Flatpickr
+                dateRangePicker = flatpickr("#date-range", {
+                    mode: "range",
+                    dateFormat: "Y-m-d",
+                });
                 
-                // Customize label and color based on dataKey
-                let label = 'Data';
-                let color = '#3498db'; // Default color
-                if (dataKey === 'chart1Data') {
-                    label = 'Power Factor';
-                    color = '#2ecc71';
-                } else if (dataKey === 'chart2Data') {
-                    label = 'Average Voltage';
-                    color = '#e74c3c';
+                // Fetch initial filter data
+                await populateFilters();
+
+                // Add event listener for the main "Add Graph" button
+                addGraphBtn.addEventListener('click', handleAddGraph);
+            };
+
+            // --- Functions ---
+
+            /**
+             * Fetches equipment and register lists from the API and populates the dropdowns.
+             */
+            const populateFilters = async () => {
+                try {
+                    const response = await fetch('/api/filters');
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const data = await response.json();
+
+                    // Populate Equipment Select
+                    equipmentSelect.innerHTML = ''; // Clear loading text
+                    if (data.equipments && data.equipments.length > 0) {
+                        data.equipments.forEach(equip => {
+                            const option = document.createElement('option');
+                            option.value = equip;
+                            option.textContent = equip;
+                            equipmentSelect.appendChild(option);
+                        });
+                    } else {
+                        equipmentSelect.innerHTML = '<option>No equipment found</option>';
+                    }
+
+                    // Populate Register Select
+                    registerSelect.innerHTML = ''; // Clear loading text
+                     if (data.registers && data.registers.length > 0) {
+                        data.registers.forEach(reg => {
+                            const option = new Option(reg, reg);
+                            registerSelect.add(option);
+                        });
+                    } else {
+                        registerSelect.innerHTML = '<option>No registers found</option>';
+                    }
+
+                } catch (error) {
+                    console.error("Failed to fetch filters:", error);
+                    equipmentSelect.innerHTML = '<option>Error loading</option>';
+                    registerSelect.innerHTML = '<option>Error loading</option>';
+                }
+            };
+
+            /**
+             * Handles the click event for the "Add Graph" button.
+             */
+            const handleAddGraph = () => {
+                const equipment = equipmentSelect.value;
+                const register = registerSelect.value;
+                const selectedDates = dateRangePicker.selectedDates;
+                const startDate = selectedDates.length > 0 ? flatpickr.formatDate(selectedDates[0], "Y-m-d") : '';
+                const endDate = selectedDates.length > 1 ? flatpickr.formatDate(selectedDates[1], "Y-m-d") : startDate;
+
+                if (!equipment || !register) {
+                    alert("Please select both an equipment and a register.");
+                    return;
+                }
+                
+                createGraphCard(equipment, register, startDate, endDate);
+            };
+
+            /**
+             * Creates and appends a new graph card to the dashboard.
+             * @param {string} equipment - The selected equipment.
+             * @param {string} register - The selected register.
+             * @param {string} startDate - The start date for the data query.
+             * @param {string} endDate - The end date for the data query.
+             */
+            const createGraphCard = async (equipment, register, startDate, endDate) => {
+                noGraphsPlaceholder.classList.add('hidden');
+
+                const cardId = `card-${Date.now()}`;
+                const cardClone = graphCardTemplate.content.cloneNode(true);
+                const cardElement = cardClone.querySelector('.bg-white');
+                cardElement.id = cardId;
+
+                // Set card title and subtitle
+                cardElement.querySelector('.card-title').textContent = register;
+                cardElement.querySelector('.card-subtitle').textContent = equipment;
+
+                graphsContainer.appendChild(cardElement);
+                
+                const newCard = document.getElementById(cardId);
+
+                try {
+                    // Fetch data for the new chart
+                    const chartData = await fetchChartData(equipment, register, startDate, endDate);
+                    
+                    // Hide loading overlay
+                    newCard.querySelector('.loading-overlay').classList.add('hidden');
+
+                    if (chartData.length === 0) {
+                        displayNoDataMessage(newCard);
+                        return;
+                    }
+
+                    // Render the chart
+                    renderChart(newCard, chartData);
+                    
+                    // Populate the data table
+                    populateDataTable(newCard, chartData);
+
+                    // Add event listeners for card-specific buttons
+                    newCard.querySelector('.remove-btn').addEventListener('click', () => removeCard(cardId));
+                    newCard.querySelector('.toggle-table-btn').addEventListener('click', (e) => toggleDataTable(e, newCard));
+
+                } catch (error) {
+                    console.error("Error creating graph card:", error);
+                    displayErrorMessage(newCard);
+                }
+            };
+            
+            /**
+             * Fetches data from the API endpoint.
+             */
+            const fetchChartData = async (equipment, register, startDate, endDate) => {
+                const params = new URLSearchParams({
+                    equipment,
+                    register,
+                    startDate,
+                    endDate
+                });
+                const response = await fetch(`/api/data?${params.toString()}`);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch data: ${response.statusText}`);
+                }
+                return await response.json();
+            };
+
+            /**
+             * Renders a chart inside a given card element.
+             */
+            const renderChart = (cardElement, data) => {
+                const ctx = cardElement.querySelector('.chart-canvas').getContext('2d');
+                const cardId = cardElement.id;
+
+                const labels = data.map(d => new Date(d.Timestamp).toLocaleString());
+                const values = data.map(d => d.Value);
+
+                // Destroy previous chart instance if it exists
+                if (chartInstances[cardId]) {
+                    chartInstances[cardId].destroy();
                 }
 
-                if (chartData) {
-                    createChart(canvasId, chartData, label, color);
-                } else {
-                    console.error('No data found for key:', dataKey);
+                chartInstances[cardId] = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: cardElement.querySelector('.card-title').textContent,
+                            data: values,
+                            borderColor: 'rgb(79, 70, 229)',
+                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 2,
+                            pointHoverRadius: 5,
+                            tension: 0.1,
+                            fill: true,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                ticks: {
+                                    maxRotation: 0,
+                                    autoSkip: true,
+                                    maxTicksLimit: 10
+                                }
+                            },
+                            y: {
+                                beginAtZero: false
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                            }
+                        },
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                    }
+                });
+            };
+
+            /**
+             * Populates the raw data table within a card.
+             */
+            const populateDataTable = (cardElement, data) => {
+                const tableBody = cardElement.querySelector('tbody');
+                tableBody.innerHTML = ''; // Clear existing data
+                if (data.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="2" class="text-center p-4 text-slate-500">No data available for this selection.</td></tr>';
+                    return;
                 }
-            } else {
-                // Hide the container and destroy the chart to free up memory
-                wrapper.classList.add('hidden');
-                if (activeCharts[canvasId]) {
-                    activeCharts[canvasId].destroy();
-                    delete activeCharts[canvasId]; // Remove from active charts object
+                const rowsHtml = data.map(row => `
+                    <tr>
+                        <td class="px-4 py-2 whitespace-nowrap text-sm text-slate-600">${new Date(row.Timestamp).toLocaleString()}</td>
+                        <td class="px-4 py-2 whitespace-nowrap text-sm text-slate-800 font-medium">${Number(row.Value).toFixed(4)}</td>
+                    </tr>
+                `).join('');
+                tableBody.innerHTML = rowsHtml;
+            };
+
+            /**
+             * Toggles the visibility of the data table in a card.
+             */
+            const toggleDataTable = (event, cardElement) => {
+                const tableContainer = cardElement.querySelector('.data-table-container');
+                const button = event.currentTarget;
+                const isHidden = tableContainer.classList.toggle('hidden');
+                button.textContent = isHidden ? 'Show Raw Data' : 'Hide Raw Data';
+            };
+
+            /**
+             * Removes a card from the dashboard.
+             */
+            const removeCard = (cardId) => {
+                const cardElement = document.getElementById(cardId);
+                if (cardElement) {
+                    cardElement.remove();
                 }
-            }
-        }
+                if (chartInstances[cardId]) {
+                    chartInstances[cardId].destroy();
+                    delete chartInstances[cardId];
+                }
+                if (graphsContainer.children.length === 0) {
+                    noGraphsPlaceholder.classList.remove('hidden');
+                }
+            };
+            
+            /**
+             * Displays a "No Data" message in the chart area.
+             */
+            const displayNoDataMessage = (cardElement) => {
+                const chartArea = cardElement.querySelector('.relative');
+                chartArea.innerHTML = `
+                    <div class="flex items-center justify-center h-full text-center text-slate-500 p-4">
+                        <div>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <p class="mt-2 font-medium">No Data Found</p>
+                            <p class="text-sm">There is no data available for the selected criteria.</p>
+                        </div>
+                    </div>`;
+            };
+
+            /**
+             * Displays an error message in the chart area.
+             */
+            const displayErrorMessage = (cardElement) => {
+                const chartArea = cardElement.querySelector('.relative');
+                chartArea.innerHTML = `
+                    <div class="flex items-center justify-center h-full text-center text-red-500 p-4">
+                        <div>
+                             <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                               <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                             </svg>
+                            <p class="mt-2 font-medium">Failed to load chart</p>
+                            <p class="text-sm">Please check the console for errors.</p>
+                        </div>
+                    </div>`;
+            };
+
+            // --- Start the application ---
+            init();
+        });
     </script>
-
 </body>
 </html>
