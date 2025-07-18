@@ -288,7 +288,7 @@
                     populateDataTable(newCard, chartData);
 
                     // Add event listeners for card-specific buttons
-                    newCard.querySelector('.remove-btn').addEventListener('click', () => removeCard(cardId));
+                    newCard.querySelector('.remove-btn').addEventListener('click', removeCard);
                     newCard.querySelector('.toggle-table-btn').addEventListener('click', (e) => toggleDataTable(e, newCard));
 
                 } catch (error) {
@@ -407,17 +407,25 @@
             };
 
             /**
-             * Removes a card from the dashboard.
+             * Removes a card from the dashboard based on the click event.
+             * @param {MouseEvent} event The click event from the remove button.
              */
-            const removeCard = (cardId) => {
-                const cardElement = document.getElementById(cardId);
-                if (cardElement) {
-                    cardElement.remove();
-                }
+            const removeCard = (event) => {
+                const cardElement = event.currentTarget.closest('.bg-white');
+                if (!cardElement) return;
+
+                const cardId = cardElement.id;
+                
+                // Destroy the chart instance to free up memory
                 if (chartInstances[cardId]) {
                     chartInstances[cardId].destroy();
                     delete chartInstances[cardId];
                 }
+
+                // Remove the card from the DOM
+                cardElement.remove();
+
+                // Show the placeholder if no graphs are left
                 if (graphsContainer.children.length === 0) {
                     noGraphsPlaceholder.classList.remove('hidden');
                 }
