@@ -8,7 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/date-fns@2.23.0/cdn.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f4f7f6; color: #333; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #0056b3; color: #333; }
         .container { max-width: 1200px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         h1 { color: #0056b3; text-align: center; }
         .filters { display: flex; justify-content: space-around; align-items: center; padding: 20px; margin-bottom: 20px; background-color: #e9ecef; border-radius: 8px; flex-wrap: wrap; gap: 15px; }
@@ -110,6 +110,7 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
+                console.log("Fetched data sample:", data.slice(0, 5));
                 updateChart(data);
             } catch (error) {
                 console.error("Could not fetch chart data:", error);
@@ -119,14 +120,23 @@
         function updateChart(data) {
             if (!myChart) return;
 
-            // Clear previous data
-            myChart.data.labels = [];
             myChart.data.datasets = [];
 
-            if (data.length > 0) {
-                const points = data.map(d => ({ x: new Date(d.Timestamp), y: d.Value }));
+            if (data && data.length > 0) {
+                const points = data.map(d => ({x: dateFns.parse(d.Timestamp, 'yyyy-MM-dd HH:mm:ss', new Date()), y: d.Value}));
+
+                let chartLabel;
+
+                if (data[0].Description && data[0].Register_Name) {
+                    chartLabel= `${data[0].Description} - ${data[0].Register_Name}`
+                }
+                else {
+                const equipmentLabel= document.getElementById('equipmentFilter').value;
+                const registerLabel= document.getElementById('registerFilter').value;
+                }
+
                 myChart.data.datasets.push({
-                    label: `${data[0].Description} - ${data[0].Register_Name}`,
+                    label: chartLabel,
                     data: points,
                     borderColor: 'rgb(75, 192, 192)',
                     tension: 0.1,
@@ -136,7 +146,7 @@
                 });
 
                 // Dynamically adjust time unit based on data range
-                const timeRange = new Date(data[data.length - 1].Timestamp).getTime() - new Date(data[0].Timestamp).getTime();
+                const timeRange = points[points.length - 1].x.getTime() - points[0].x.getTime();
                 const days = timeRange / (1000 * 60 * 60 * 24);
                 let unit = 'minute';
                 if (days > 30) unit = 'day';

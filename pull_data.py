@@ -46,13 +46,13 @@ def process_device(row, register_name_map):
     client = ModbusClient(host=ip, port=502, unit_id=1, auto_open=True, timeout=3.0)
 
     try:
-        print(f"\nReading from {description} ({ip}, slave {slave_id})")
+        #print(f"\nReading from {description} ({ip}, slave {slave_id})")
         client.open()
-        print("Client open:", client.is_open)
+        #print("Client open:", client.is_open)
 
         for reg_start in registers_to_read:
             reg_name = register_name_map.get(reg_start, f"Register{reg_start}")
-            print(f"Attempting to read from register {reg_name} (Reg_value={reg_start})")
+            #print(f"Attempting to read from register {reg_name} (Reg_value={reg_start})")
 
             #Register themselves are 0 indexed so in order to access 1199 we must sub 1 for example
             regs= client.read_holding_registers(reg_start - 1, 2)
@@ -66,7 +66,7 @@ def process_device(row, register_name_map):
                     float_value = struct.unpack('>f', struct.pack('>HH', regs[1], regs[0]))[0]
                     time_of_data = datetime.now().strftime('%Y-%m-%d %H:%M:%S %p')
                 except Exception as e:
-                    print(f"Decode error: {str(e)}")
+                    #print(f"Decode error: {str(e)}")
                     continue
 
                 safe_reg_name = reg_name.replace(" ", "_").replace("/", "-")
