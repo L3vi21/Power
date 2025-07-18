@@ -91,6 +91,8 @@ def get_filters():
 def get_chart_data():
     equipment = request.args.get('equipment')
     register = request.args.get('register')
+    start_date_str = request.args.get('startDate')
+    end_date_str = request.args.get('endDate') 
 
     # NEW: Check if specific filters have been applied.
     # If not, return an empty list to prevent sending too much data.
@@ -103,22 +105,47 @@ def get_chart_data():
         return jsonify([])
         
     filtered_df = main_df.copy()
-
-    start_date_str = request.args.get('startDate')
-    end_date_str = request.args.get('endDate')
-
+    
     # Apply the specific filters that are now required
-    filtered_df = filtered_df[filtered_df['Description'] == equipment]
-    filtered_df = filtered_df[filtered_df['Register_Name'] == register]
-
+    filtered_df = filtered_df[(filtered_df['Description'] == equipment) & (filtered_df['Register_Name'] == register)]
+    
+    start_date= None
     if start_date_str:
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
-        filtered_df = filtered_df[filtered_df['Timestamp'] >= start_date]
+        filtered_df = filtered_df[filtered_df['Timestamp'] >= start_date] 
 
+    end_date = None
     if end_date_str:
         end_date = datetime.strptime(end_date_str, '%Y-%m-%d') + timedelta(days=1)
         filtered_df = filtered_df[filtered_df['Timestamp'] < end_date]
-    
+
+    if not filtered_df.empty:
+        # Set the Timestamp as the index for resampling
+        df_to_resample = filtered_df.set_index('Timestamp')
+        
+        # Determine the time range to decide on a resampling rule
+        time_delta = (df_to_resample.index.max() - df_to_resample.index.min()) if start_date and end_date else timedelta(days=0)
+        
+        # Define a resampling rule based on the time delta
+        if time_delta > timedelta(days=30):
+            rule = 'D'  # Daily average
+        elif time_delta > timedelta(days=7):
+            rule = 'H'  # Hourly average
+        elif time_delta > timedelta(days=1):
+            rule = 'T'  # Minutely average
+        else:
+            rule = None # No resampling for short periods
+            
+        if rule:
+            print(f"DEBUG: Resampling data with rule: {rule}")
+            # Resample the 'Value' column, then reset the index to get 'Timestamp' back as a column
+            resampled_df = df_to_resample['Value'].resample(rule).mean().reset_index()
+            # Since resampling might remove other columns, we'll just send what's necessary for the chart
+            # Or, you could merge back other relevant info if needed. For now, this is simpler.
+            resampled_df['Description'] = equipment
+            resampled_df['Register_Name'] = register
+            filtered_df = resampled_df
+
     print(f"DEBUG: Returning {len(filtered_df)} rows for specific selection.")
     return jsonify(filtered_df.to_dict(orient='records'))
 
