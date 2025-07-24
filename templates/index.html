@@ -47,7 +47,7 @@
     <!-- Header -->
     <header class="bg-white shadow-md sticky top-0 z-20">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <h1 class="text-2xl font-bold text-slate-800">Energy Consumption Dashboard</h1>
+            <h1 class="text-2xl font-bold text-slate-800">Power Monitoring Dashboard</h1>
             <p class="text-sm text-slate-500">Visualize and analyze metered data.</p>
         </div>
     </header>
@@ -138,6 +138,9 @@
                  <button class="toggle-table-btn w-full text-sm font-medium text-indigo-600 hover:text-indigo-800">
                     Show Raw Data
                 </button>
+                <button class= "toggle-refresh-btn w-full text-sm font-medium text-indigo-600 hover:text-indigo-800">
+                    Refresh Graph
+                </button>
             </div>
             <!-- Data Table (hidden by default) -->
             <div class="data-table-container hidden mt-4">
@@ -193,11 +196,14 @@
             const handleCardActions = (event) => {
                 const removeBtn = event.target.closest('.remove-btn');
                 const toggleBtn = event.target.closest('.toggle-table-btn');
+                const refreshBtn= event.target.closest('.toggle-refresh-Btn')
 
                 if (removeBtn) {
                     removeCard(removeBtn);
                 } else if (toggleBtn) {
                     toggleDataTable(toggleBtn);
+                } else if (refreshBtn) {
+                    toggleRefreshData(refreshBtn);
                 }
             };
 
@@ -346,6 +352,57 @@
                 const isHidden = tableContainer.classList.toggle('hidden');
                 buttonElement.textContent = isHidden ? 'Show Raw Data' : 'Hide Raw Data';
             };
+
+            const toggleRefreshData = (buttonElement) => {
+                const cardElement = buttonElement.closest('.graph-card');
+                if (!cardElement) return;
+            // 1. Get parameters from the card's data attributes
+            const { equipment, register, startDate, endDate } = cardElement.dataset;
+            if (!equipment || !register) {
+                console.error("Could not find equipment/register data on the card to refresh.");
+                return;
+            }
+            
+            const chartAreaContainer = cardElement.querySelector('.relative.flex-grow');
+            
+            // 2. Reset the chart area to a loading state. This is robust and handles
+            // cases where the area previously showed an error or no-data message.
+            const loadingSpinnerHtml = `
+                <div class="loading-overlay absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
+                    <div class="text-center">
+                        <svg class="animate-spin h-8 w-8 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <p class="mt-2 text-sm text-slate-600">Refreshing data...</p>
+                    </div>
+                </div>
+                <canvas class="chart-canvas"></canvas>
+            `;
+            chartAreaContainer.innerHTML = loadingSpinnerHtml;
+            
+            try {
+                // 3. Fetch fresh data
+                const chartData = await fetchChartData(equipment, register, startDate, endDate);
+                
+                // Hide the loading spinner upon completion
+                const loadingOverlay = chartAreaContainer.querySelector('.loading-overlay');
+                if(loadingOverlay) loadingOverlay.classList.add('hidden');
+
+                if (chartData.length === 0) {
+                    // 4a. Handle no data
+                    displayNoDataMessage(cardElement);
+                } else {
+                    // 4b. Render new chart and populate table
+                    renderChart(cardElement, chartData);
+                    populateDataTable(cardElement, chartData);
+                }
+            } catch (error) {
+                // 4c. Handle fetch/render errors
+                console.error("Error refreshing graph card:", error);
+                displayErrorMessage(cardElement, error.message);
+            }
+        };
 
             const removeCard = (buttonElement) => {
                 const cardElement = buttonElement.closest('.graph-card');
