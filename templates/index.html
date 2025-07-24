@@ -140,7 +140,7 @@
                  <button class="toggle-table-btn w-full text-sm font-medium text-indigo-600 hover:text-indigo-800">
                     Show Raw Data
                 </button>
-                <button class="toggle-refresh-btn w-full text-sm font-medium text-indigo-600 hover:text-indigo-800">
+                <button class= "toggle-refresh-btn w-full text-sm font-medium text-indigo-600 hover:text-indigo-800">
                     Refresh Graph
                 </button>
             </div>
@@ -187,13 +187,18 @@
                 populateFilters();
 
                 addGraphBtn.addEventListener('click', handleAddGraph);
+                // Use event delegation for all actions on dynamically created cards
                 graphsContainer.addEventListener('click', handleCardActions);
             };
 
+            /**
+             * Handles all click events within the graphs container using event delegation.
+             * @param {MouseEvent} event - The click event.
+             */
             const handleCardActions = (event) => {
                 const removeBtn = event.target.closest('.remove-btn');
                 const toggleBtn = event.target.closest('.toggle-table-btn');
-                const refreshBtn = event.target.closest('.toggle-refresh-btn');
+                const refreshBtn= event.target.closest('.toggle-refresh-btn')
 
                 if (removeBtn) {
                     removeCard(removeBtn);
@@ -204,13 +209,11 @@
                 }
             };
 
-            // MOCK FUNCTION: So the dropdowns work without a server.
             const populateFilters = async () => {
                 try {
-                    const data = {
-                        equipments: ["Main Incomer", "Chiller 1", "AHU-01", "Server Room PDU"],
-                        registers: ["Voltage A-N", "Current A", "Active Power", "Power Factor"]
-                    };
+                    const response = await fetch('/api/filters');
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const data = await response.json();
 
                     equipmentSelect.innerHTML = '<option value="">Select Equipment</option>';
                     data.equipments.forEach(equip => {
@@ -243,21 +246,14 @@
                 
                 createGraphCard(equipment, register, startDate, endDate);
             };
-            
-            // FIXED: This function now saves the chart parameters to the card element.
+
             const createGraphCard = async (equipment, register, startDate, endDate) => {
                 noGraphsPlaceholder.classList.add('hidden');
 
                 const cardId = `card-${Date.now()}`;
                 const cardClone = graphCardTemplate.content.cloneNode(true);
-                const cardElement = cardClone.querySelector('.graph-card');
+                const cardElement = cardClone.querySelector('.graph-card'); // Use the new specific class
                 cardElement.id = cardId;
-                
-                // This is a critical fix: store the parameters on the element itself
-                cardElement.dataset.equipment = equipment;
-                cardElement.dataset.register = register;
-                cardElement.dataset.startDate = startDate || '';
-                cardElement.dataset.endDate = endDate || '';
 
                 cardElement.querySelector('.card-title').textContent = register;
                 cardElement.querySelector('.card-subtitle').textContent = equipment;
@@ -284,25 +280,15 @@
                 }
             };
             
-            // MOCK FUNCTION: Generates fake data so the file works without a server.
             const fetchChartData = async (equipment, register, startDate, endDate) => {
-                console.log(`Fetching data for: ${equipment}, ${register}, ${startDate}, ${endDate}`);
-                return new Promise((resolve) => {
-                    setTimeout(() => {
-                        const data = [];
-                        const start = startDate ? new Date(startDate) : new Date(new Date().setDate(new Date().getDate() - 7));
-                        const end = endDate ? new Date(endDate) : new Date();
-                        let current = new Date(start);
-                        while (current <= end) {
-                            data.push({
-                                Timestamp: current.toISOString(),
-                                Value: 100 + Math.random() * 50 + (Math.sin(current.getTime() / 86400000) * 20)
-                            });
-                            current.setDate(current.getDate() + 1);
-                        }
-                        resolve(data);
-                    }, 500); // Simulate network delay
-                });
+                const params = new URLSearchParams({ equipment, register, startDate, endDate });
+                const response = await fetch(`/api/data?${params.toString()}`);
+                const data = await response.json();
+                if (!response.ok) {
+                    const errorMessage = data.message || data.error || `Failed to fetch data: ${response.statusText}`;
+                    throw new Error(errorMessage);
+                }
+                return data;
             };
 
             const renderChart = (cardElement, data) => {
@@ -311,9 +297,7 @@
 
                 const chartData = data.map(d => ({ x: new Date(d.Timestamp), y: d.Value }));
 
-                if (chartInstances[cardId]) {
-                    chartInstances[cardId].destroy();
-                }
+                if (chartInstances[cardId]) chartInstances[cardId].destroy();
 
                 chartInstances[cardId] = new Chart(ctx, {
                     type: 'line',
@@ -334,21 +318,34 @@
                         responsive: true,
                         maintainAspectRatio: false,
                         scales: {
-                            x: { type: 'time', time: { unit: 'day' }, grid: { display: false } },
+                            x: {
+                                type: 'time',
+                                time: { unit: 'day' },
+                                grid: { display: false }
+                            },
                             y: { beginAtZero: false }
                         },
                         plugins: { 
                             legend: { display: false },
                             zoom: {
-                                pan: { enabled: true, mode: 'xy' },
+                                pan: {
+                                    enabled: true,
+                                    mode: 'xy',
+                                    threshold: 5,
+                                },
                                 zoom: {
-                                    wheel: { enabled: true },
-                                    pinch: { enabled: true },
-                                    drag: { enabled: true },
+                                    drag: {
+                                        enabled: true
+                                    },
+                                    wheel: {
+                                        enabled: true,
+                                    },
+                                    pinch: {
+                                        enabled: true,
+                                    },
                                     mode: 'x',
                                 }
-                            }
-                        }
+                            } }
                     }
                 });
             };
@@ -378,14 +375,12 @@
                 buttonElement.textContent = isHidden ? 'Show Raw Data' : 'Hide Raw Data';
             };
 
-            // FIXED: This function now correctly destroys the old chart and awaits new data.
-            const toggleRefreshData = async (buttonElement) => {
+            const toggleRefreshData = (buttonElement) => {
                 const cardElement = buttonElement.closest('.graph-card');
                 if (!cardElement) return;
 
-                const cardId = cardElement.id;
+                const cardId= cardElement.id;
 
-                // 1. Properly destroy the old chart instance BEFORE removing its canvas from the DOM.
                 if (chartInstances[cardId]) {
                     chartInstances[cardId].destroy();
                     delete chartInstances[cardId]; // Remove the reference
@@ -393,7 +388,8 @@
 
                 const chartAreaContainer = cardElement.querySelector('.relative.flex-grow');
             
-                // 2. Set the loading state.
+                // 2. Reset the chart area to a loading state. This is robust and handles
+                // cases where the area previously showed an error or no-data message.
                 const loadingSpinnerHtml = `
                     <div class="loading-overlay absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
                         <div class="text-center">
@@ -409,20 +405,23 @@
                 chartAreaContainer.innerHTML = loadingSpinnerHtml;
             
                 try {
-                    // 3. Fetch fresh data, using await to get the result.
-                    const chartData = await fetchChartData(cardElement.dataset.equipment, cardElement.dataset.register, cardElement.dataset.startDate, cardElement.dataset.endDate);
+                    // 3. Fetch fresh data
+                    const chartData = fetchChartData(equipment, register, startDate, endDate);
                 
+                    // Hide the loading spinner upon completion
                     const loadingOverlay = chartAreaContainer.querySelector('.loading-overlay');
                     if(loadingOverlay) loadingOverlay.classList.add('hidden');
 
                     if (chartData.length === 0) {
+                        // 4a. Handle no data
                         displayNoDataMessage(cardElement);
                     } else {
-                        // 4. Render the new chart.
+                        // 4b. Render new chart and populate table
                         renderChart(cardElement, chartData);
                         populateDataTable(cardElement, chartData);
                     }
                 } catch (error) {
+                    // 4c. Handle fetch/render errors
                     console.error("Error refreshing graph card:", error);
                     displayErrorMessage(cardElement, error.message);
                 }
