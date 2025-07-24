@@ -136,7 +136,7 @@
                 <canvas class="chart-canvas"></canvas>
             </div>
             <!-- Card Footer / Actions -->
-            <div class="mt-4 pt-4 border-t border-slate-200">
+            <div class="mt-4 pt-4 border-t border-slate-200 flex items-center space-x-4">
                  <button class="toggle-table-btn w-full text-sm font-medium text-indigo-600 hover:text-indigo-800">
                     Show Raw Data
                 </button>
@@ -198,7 +198,7 @@
             const handleCardActions = (event) => {
                 const removeBtn = event.target.closest('.remove-btn');
                 const toggleBtn = event.target.closest('.toggle-table-btn');
-                const refreshBtn= event.target.closest('.toggle-refresh-Btn')
+                const refreshBtn= event.target.closest('.toggle-refresh-btn')
 
                 if (removeBtn) {
                     removeCard(removeBtn);
@@ -331,9 +331,12 @@
                                 pan: {
                                     enabled: true,
                                     mode: 'xy',
-                                    threshold: 1,
+                                    threshold: 5,
                                 },
                                 zoom: {
+                                    drag: {
+                                        enabled: true
+                                    },
                                     wheel: {
                                         enabled: true,
                                     },
@@ -375,53 +378,53 @@
             const toggleRefreshData = (buttonElement) => {
                 const cardElement = buttonElement.closest('.graph-card');
                 if (!cardElement) return;
-            // 1. Get parameters from the card's data attributes
-            const { equipment, register, startDate, endDate } = cardElement.dataset;
-            if (!equipment || !register) {
-                console.error("Could not find equipment/register data on the card to refresh.");
-                return;
-            }
-            
-            const chartAreaContainer = cardElement.querySelector('.relative.flex-grow');
-            
-            // 2. Reset the chart area to a loading state. This is robust and handles
-            // cases where the area previously showed an error or no-data message.
-            const loadingSpinnerHtml = `
-                <div class="loading-overlay absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
-                    <div class="text-center">
-                        <svg class="animate-spin h-8 w-8 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <p class="mt-2 text-sm text-slate-600">Refreshing data...</p>
-                    </div>
-                </div>
-                <canvas class="chart-canvas"></canvas>
-            `;
-            chartAreaContainer.innerHTML = loadingSpinnerHtml;
-            
-            try {
-                // 3. Fetch fresh data
-                const chartData = fetchChartData(equipment, register, startDate, endDate);
-                
-                // Hide the loading spinner upon completion
-                const loadingOverlay = chartAreaContainer.querySelector('.loading-overlay');
-                if(loadingOverlay) loadingOverlay.classList.add('hidden');
-
-                if (chartData.length === 0) {
-                    // 4a. Handle no data
-                    displayNoDataMessage(cardElement);
-                } else {
-                    // 4b. Render new chart and populate table
-                    renderChart(cardElement, chartData);
-                    populateDataTable(cardElement, chartData);
+                // 1. Get parameters from the card's data attributes
+                const { equipment, register, startDate, endDate } = cardElement.dataset;
+                if (!equipment || !register) {
+                    console.error("Could not find equipment/register data on the card to refresh.");
+                    return;
                 }
-            } catch (error) {
-                // 4c. Handle fetch/render errors
-                console.error("Error refreshing graph card:", error);
-                displayErrorMessage(cardElement, error.message);
-            }
-        };
+            
+                const chartAreaContainer = cardElement.querySelector('.relative.flex-grow');
+            
+                // 2. Reset the chart area to a loading state. This is robust and handles
+                // cases where the area previously showed an error or no-data message.
+                const loadingSpinnerHtml = `
+                    <div class="loading-overlay absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
+                        <div class="text-center">
+                            <svg class="animate-spin h-8 w-8 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <p class="mt-2 text-sm text-slate-600">Refreshing data...</p>
+                        </div>
+                    </div>
+                    <canvas class="chart-canvas"></canvas>
+                `;
+                chartAreaContainer.innerHTML = loadingSpinnerHtml;
+            
+                try {
+                    // 3. Fetch fresh data
+                    const chartData = fetchChartData(equipment, register, startDate, endDate);
+                
+                    // Hide the loading spinner upon completion
+                    const loadingOverlay = chartAreaContainer.querySelector('.loading-overlay');
+                    if(loadingOverlay) loadingOverlay.classList.add('hidden');
+
+                    if (chartData.length === 0) {
+                        // 4a. Handle no data
+                        displayNoDataMessage(cardElement);
+                    } else {
+                        // 4b. Render new chart and populate table
+                        renderChart(cardElement, chartData);
+                        populateDataTable(cardElement, chartData);
+                    }
+                } catch (error) {
+                    // 4c. Handle fetch/render errors
+                    console.error("Error refreshing graph card:", error);
+                    displayErrorMessage(cardElement, error.message);
+                }
+            };
 
             const removeCard = (buttonElement) => {
                 const cardElement = buttonElement.closest('.graph-card');
