@@ -383,7 +383,7 @@
             
             try {
                 // 3. Fetch fresh data
-                const chartData = await fetchChartData(equipment, register, startDate, endDate);
+                const chartData = fetchChartData(equipment, register, startDate, endDate);
                 
                 // Hide the loading spinner upon completion
                 const loadingOverlay = chartAreaContainer.querySelector('.loading-overlay');
