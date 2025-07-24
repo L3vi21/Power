@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, render_template, request
 import pandas as pd
+import numpy as np
 import glob
 import os
 from datetime import datetime, timedelta
@@ -50,7 +51,14 @@ def get_data_from_csvs():
         return pd.DataFrame()
 
     combined_df = pd.concat(df_list, ignore_index=True)
-    combined_df = combined_df.sort_values(by='Timestamp')
+
+    if 'Value' in combined_df.columns:
+        combined_df['Value'] = pd.to_numeric(combined_df['Value'], errors= 'coerce')
+        combined_df.dropna(subset=['Value'], inplace= True)
+    else:
+        print("Warning: Value column not found in the combined df(dataframe)")
+
+    combined_df= combined_df.sort_values(by= 'Timestamp')
 
     print("Data Loading Complete")
     return combined_df
@@ -114,10 +122,10 @@ def get_chart_data():
         
         # **FIX:** Replace NaN with None for valid JSON conversion
         # This prevents the "Unexpected token 'N'" error on the frontend.
-        cleaned_df = filtered_df.where(pd.notna(filtered_df), None)
+        filtered_df.replace({np.nan: None}, inplace= True)
 
-        print(f"DEBUG: Returning {len(cleaned_df)} rows for {equipment} | {register}.")
-        return jsonify(cleaned_df.to_dict(orient='records'))
+        print(f"DEBUG: Returning {len(filtered_df)} rows for {equipment} | {register}.")
+        return jsonify(filtered_df.to_dict(orient='records'))
 
     except Exception as e:
         # Log the full error to the server console for debugging
