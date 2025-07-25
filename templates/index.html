@@ -39,6 +39,22 @@
             border-radius: 0.5rem;
             box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
         }
+        .graph-card.is-fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 50;
+            padding: 2rem;
+            overflow-y: auto; /* Allow scrolling if content overflows on small screens */
+        }
+        /* When a card is fullscreen, hide other UI elements for a clean view */
+        body.fullscreen-active > header,
+        body.fullscreen-active > main > div:not(#graphs-container),
+        body.fullscreen-active #graphs-container > .graph-card:not(.is-fullscreen) {
+            display: none;
+        }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -143,7 +159,7 @@
                 <button class= "toggle-refresh-btn w-full text-sm font-medium text-indigo-600 hover:text-indigo-800">
                     Refresh Graph
                 </button>
-                <button class="toggle-resize-btn w-full text-sm font-medium text-indigo-600 hover:text-indigo-800"></button>
+                <button class="toggle-resize-btn w-full text-sm font-medium text-indigo-600 hover:text-indigo-800">
                     Full Screen
                 </button>
             </div>
@@ -190,8 +206,17 @@
                 populateFilters();
 
                 addGraphBtn.addEventListener('click', handleAddGraph);
-                // Use event delegation for all actions on dynamically created cards
                 graphsContainer.addEventListener('click', handleCardActions);
+
+                document.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape') {
+                        const fullscreenCard = document.querySelector('.graph-card.is-fullscreen');
+                        if (fullscreenCard) {
+                            // Find its resize button and click it programmatically to exit
+                            fullscreenCard.querySelector('.toggle-resize-btn').click();
+                        }
+                    }
+                });
             };
 
             /**
@@ -419,10 +444,31 @@
             const toggleResizeData = (buttonElement) => {
                 const cardElement = buttonElement.closest('.graph-card');
                 if (!cardElement) return;
-                const tableContainer = cardElement.querySelector('.data-table-container');
 
-                cardElement.resize()
-            }
+                const cardId = cardElement.id;
+                const chartInstance = chartInstances[cardId];
+
+                // Check if the card is already in fullscreen mode
+                const isCurrentlyFullscreen = cardElement.classList.contains('is-fullscreen');
+
+                if (isCurrentlyFullscreen) {
+                    // --- Exit Fullscreen ---
+                    cardElement.classList.remove('is-fullscreen');
+                    document.body.classList.remove('fullscreen-active');
+                    buttonElement.textContent = 'Full Screen';
+                } else {
+                    // --- Enter Fullscreen ---
+                    cardElement.classList.add('is-fullscreen');
+                    document.body.classList.add('fullscreen-active');
+                    buttonElement.textContent = 'Minimize';
+                }
+                
+                if (chartInstance) {
+                    setTimeout(() => {
+                        chartInstance.resize();
+                    }, 50);
+                }
+            };
 
 
             const removeCard = (buttonElement) => {
