@@ -143,6 +143,9 @@
                 <button class= "toggle-refresh-btn w-full text-sm font-medium text-indigo-600 hover:text-indigo-800">
                     Refresh Graph
                 </button>
+                <button class="toggle-resize-btn w-full text-sm font-medium text-indigo-600 hover:text-indigo-800"></button>
+                    Full Screen
+                </button>
             </div>
             <!-- Data Table (hidden by default) -->
             <div class="data-table-container hidden mt-4">
@@ -199,6 +202,7 @@
                 const removeBtn = event.target.closest('.remove-btn');
                 const toggleBtn = event.target.closest('.toggle-table-btn');
                 const refreshBtn= event.target.closest('.toggle-refresh-btn')
+                const resizeBtn= event.target.closest('toggle-resize-btn')
 
                 if (removeBtn) {
                     removeCard(removeBtn);
@@ -206,6 +210,8 @@
                     toggleDataTable(toggleBtn);
                 } else if (refreshBtn) {
                     toggleRefreshData(refreshBtn);
+                } else if (resizeBtn) {
+                    toggleResizeData(resizeBtn);
                 }
             };
 
@@ -409,6 +415,15 @@
                     displayErrorMessage(cardElement, error.message);
                 }
             };
+
+            const toggleResizeData = (buttonElement) => {
+                const cardElement = buttonElement.closest('.graph-card');
+                if (!cardElement) return;
+                const tableContainer = cardElement.querySelector('.data-table-container');
+
+                cardElement.resize()
+            }
+
 
             const removeCard = (buttonElement) => {
                 const cardElement = buttonElement.closest('.graph-card');
