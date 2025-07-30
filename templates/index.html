@@ -153,13 +153,13 @@
             </div>
             <!-- Card Footer / Actions -->
             <div class="mt-4 pt-4 border-t border-slate-200 flex items-center space-x-4">
-                 <button class="toggle-table-btn w-full text-sm font-medium text-indigo-600 hover:text-indigo-800">
+                 <button class="toggle-table-btn w-full text-sm font-medium text-indigo-600 transition:ease-in-out hover:text-indigo-800 hover:scale-105">
                     Show Raw Data
                 </button>
-                <button class= "toggle-refresh-btn w-full text-sm font-medium text-indigo-600 hover:text-indigo-800">
+                <button class= "toggle-refresh-btn w-full text-sm font-medium text-indigo-600 transition:ease-in-out hover:text-indigo-800 hover:scale-105">
                     Refresh Graph
                 </button>
-                <button class="toggle-resize-btn w-full text-sm font-medium text-indigo-600 hover:text-indigo-800">
+                <button class="toggle-resize-btn w-full text-sm font-medium text-indigo-600 transition:ease-in-out hover:text-indigo-800 hover:scale-105">
                     Full Screen
                 </button>
             </div>
@@ -227,7 +227,7 @@
                 const removeBtn = event.target.closest('.remove-btn');
                 const toggleBtn = event.target.closest('.toggle-table-btn');
                 const refreshBtn= event.target.closest('.toggle-refresh-btn')
-                const resizeBtn= event.target.closest('toggle-resize-btn')
+                const resizeBtn= event.target.closest('.toggle-resize-btn')
 
                 if (removeBtn) {
                     removeCard(removeBtn);

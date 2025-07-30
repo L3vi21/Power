@@ -136,11 +136,11 @@ def archive_old_metered_data_files():
     
     #Finds the earliest and latest modification times among the files
     for file in files_to_archive:
-        mod_time_ts = file.stat().st_mtime
+        mod_time_ts= file.stat().st_mtime
         if start_time is None or mod_time_ts < start_time:
-            start_time = mod_time_ts
+            start_time= mod_time_ts
         if end_time is None or mod_time_ts > end_time:
-            end_time = mod_time_ts
+            end_time= mod_time_ts
             
     #Formats the timestamps for the folder name
     start_str = datetime.fromtimestamp(start_time).strftime("%Y-%m-%d_%H-%M-%S")
