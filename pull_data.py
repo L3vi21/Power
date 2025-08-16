@@ -118,9 +118,19 @@ def pull_data():
         for device_row in devices:
             executor.submit(process_device, device_row, register_name_map)
 
+# Maintains a clean slate for new reads by storing old reads in a directory
 def archive_old_metered_data_files():
-    #Create the main archive directory if it doesn't exist
+    # Create the main archive directory if it doesn't exist
     source_dir= data_dir
+    
+    # No archiving is necessary when no files live in the directory
+    if not source_dir.exists():
+        return
+    
+    # No archiving necessary if metered_data directory is empty
+    if data_dir is None:
+        return
+    
     archive_dir = script_dir / "archived_data"
     
     archive_dir.mkdir(exist_ok=True)
@@ -140,11 +150,11 @@ def archive_old_metered_data_files():
         if start_time is None or mod_time_ts < start_time:
             start_time= mod_time_ts
         if end_time is None or mod_time_ts > end_time:
-            end_time= mod_time_ts
+            end_time = mod_time_ts
             
     #Formats the timestamps for the folder name
-    start_str = datetime.fromtimestamp(start_time).strftime("%Y-%m-%d_%H-%M-%S")
-    end_str = datetime.fromtimestamp(end_time).strftime("%Y-%m-%d_%H-%M-%S")
+    start_str= datetime.fromtimestamp(start_time).strftime("%Y-%m-%d_%H-%M-%S")
+    end_str= datetime.fromtimestamp(end_time).strftime("%Y-%m-%d_%H-%M-%S")
     
     # Create the new timestamped subfolder
     subfolder_name = f"{start_str}_to_{end_str}"

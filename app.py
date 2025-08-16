@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, render_template, request
+from flask_socketio import SocketIO
 import pandas as pd
 import numpy as np
 import glob
@@ -7,6 +8,7 @@ from datetime import datetime, timedelta
 import traceback
 
 app= Flask(__name__)
+socketio= SocketIO(app)
 
 def get_data_from_csvs():
     archive_directory= "archived_data"
@@ -25,6 +27,9 @@ def get_data_from_csvs():
         print("Warning: No .csv files found.")
         return pd.DataFrame()
     
+    # minimum row count needed to be met to improve storage
+    MIN_ROW_COUNT= 50
+    
     df_list= []
     for file in all_files:
         try:
@@ -33,6 +38,11 @@ def get_data_from_csvs():
                 continue
             
             df= pd.read_csv(file, header= 0)
+            
+            # Deletes file if necessary number of data entries is not met
+            if len(df) < MIN_ROW_COUNT:
+                os.remove(file)
+                continue
 
             if 'Timestamp' not in df.columns:
                 print(f"Skipping file (missing 'Timestamp'): {file}")
@@ -135,4 +145,5 @@ def get_chart_data():
         return jsonify({"error": "An internal server error occurred.", "message": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    #app.run(debug=True)
+    socketio.run(app, debug= True)
