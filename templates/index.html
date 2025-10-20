@@ -4,17 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Data Visualization Dashboard</title>
-    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js for graphing -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-    <!--For zoom capabilities for graphs-->
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
-    <!-- Flatpickr for a better date picking experience -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <!-- Custom Styles -->
     <style>
         body {
             background-color: #f1f5f9; /* slate-100 */
@@ -62,7 +58,6 @@
 </head>
 <body class="antialiased text-slate-700">
 
-    <!-- Header -->
     <header class="bg-white shadow-md sticky top-0 z-20">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <h1 class="text-2xl font-bold text-slate-800">Power Monitoring Dashboard</h1>
@@ -71,31 +66,26 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        <!-- Controls for adding new graphs -->
+
         <div class="bg-white p-6 rounded-lg shadow-md mb-8">
             <h2 class="text-xl font-semibold mb-4 text-slate-800">Add New Graph</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                <!-- Equipment Selector -->
                 <div>
                     <label for="equipment-select" class="block text-sm font-medium text-slate-600 mb-1">Equipment</label>
                     <select id="equipment-select" class="w-full p-2 border border-slate-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                         <option>Loading...</option>
                     </select>
                 </div>
-                <!-- Register Selector -->
                 <div>
                     <label for="register-select" class="block text-sm font-medium text-slate-600 mb-1">Register</label>
                     <select id="register-select" class="w-full p-2 border border-slate-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                         <option>Loading...</option>
                     </select>
                 </div>
-                <!-- Date Range Selector -->
                 <div>
                     <label for="date-range" class="block text-sm font-medium text-slate-600 mb-1">Date Range</label>
                     <input id="date-range" class="w-full p-2 border border-slate-300 rounded-md shadow-sm" placeholder="Select date range...">
                 </div>
-                <!-- Add Graph Button -->
                 <div class="mt-4 md:mt-0">
                     <button id="add-graph-btn" class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out flex items-center justify-center">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -107,12 +97,9 @@
             </div>
         </div>
 
-        <!-- Container for all graphs -->
         <div id="graphs-container" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- Graph cards will be inserted here by JavaScript -->
-        </div>
+            </div>
 
-        <!-- Placeholder for when no graphs are present -->
         <div id="no-graphs-placeholder" class="text-center py-16 px-8 bg-white rounded-lg shadow-md">
              <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -123,10 +110,8 @@
 
     </main>
 
-    <!-- Template for a single graph card -->
     <template id="graph-card-template">
         <div class="graph-card bg-white rounded-lg shadow-md p-6 flex flex-col h-full">
-            <!-- Card Header -->
             <div class="flex justify-between items-start mb-4">
                 <div>
                     <h3 class="card-title font-semibold text-lg text-slate-800"></h3>
@@ -138,11 +123,10 @@
                     </svg>
                 </button>
             </div>
-            <!-- Chart Canvas -->
             <div class="relative flex-grow h-72">
                  <div class="loading-overlay absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
                     <div class="text-center">
-                        <svg class="animate-spin h-8 w-8 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <svg class="animate-spin h-8 w-8 text-indigo-600 mx-auto" xmlns="http://wwww3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
@@ -151,7 +135,6 @@
                 </div>
                 <canvas class="chart-canvas"></canvas>
             </div>
-            <!-- Card Footer / Actions -->
             <div class="mt-4 pt-4 border-t border-slate-200 flex items-center space-x-4">
                  <button class="toggle-table-btn w-full text-sm font-medium text-indigo-600 transition:ease-in-out hover:text-indigo-800 hover:scale-105">
                     Show Raw Data
@@ -163,7 +146,6 @@
                     Full Screen
                 </button>
             </div>
-            <!-- Data Table (hidden by default) -->
             <div class="data-table-container hidden mt-4">
                 <div class="overflow-y-auto max-h-60 custom-scrollbar border border-slate-200 rounded-md">
                     <table class="min-w-full divide-y divide-slate-200">
@@ -174,8 +156,7 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-slate-200">
-                            <!-- Data rows will be inserted here -->
-                        </tbody>
+                            </tbody>
                     </table>
                 </div>
             </div>
@@ -195,6 +176,25 @@
             // --- State ---
             let chartInstances = {}; // Store chart objects by card ID
             let dateRangePicker;
+            // --- Socket.IO setup ---
+            const socket = io();
+
+            socket.on('connect', () => {
+                console.log('Connected to WebSocket server!');
+            });
+
+            socket.on('data_updated', (data) => {
+                console.log('Received data_updated event:', data.message);
+                // Refresh all visible graphs
+                document.querySelectorAll('.graph-card').forEach(card => {
+                    const refreshBtn = card.querySelector('.toggle-refresh-btn');
+                    if (refreshBtn) {
+                        console.log(`Auto-refreshing graph for card: ${card.id}`);
+                        toggleRefreshData(refreshBtn);
+                    }
+                });
+            });
+
 
             // --- Initialization ---
             const init = () => {
@@ -202,7 +202,7 @@
                     mode: "range",
                     dateFormat: "Y-m-d",
                 });
-                
+
                 populateFilters();
 
                 addGraphBtn.addEventListener('click', handleAddGraph);
@@ -274,7 +274,7 @@
                     alert("Please select both an equipment and a register.");
                     return;
                 }
-                
+
                 createGraphCard(equipment, register, startDate, endDate);
             };
 
@@ -295,7 +295,7 @@
                 cardElement.querySelector('.card-subtitle').textContent = equipment;
 
                 graphsContainer.appendChild(cardElement);
-                
+
                 const newCard = document.getElementById(cardId);
 
                 try {
@@ -315,7 +315,7 @@
                     displayErrorMessage(newCard, error.message);
                 }
             };
-            
+
             const fetchChartData = async (equipment, register, startDate, endDate) => {
                 const params = new URLSearchParams({ equipment, register, startDate, endDate });
                 const response = await fetch(`/api/data?${params.toString()}`);
@@ -361,7 +361,7 @@
                             },
                             y: { beginAtZero: false }
                         },
-                        plugins: { 
+                        plugins: {
                             legend: { display: false },
                             zoom: {
                                 pan: {
@@ -462,7 +462,7 @@
                     document.body.classList.add('fullscreen-active');
                     buttonElement.textContent = 'Minimize';
                 }
-                
+
                 if (chartInstance) {
                     setTimeout(() => {
                         chartInstance.resize();
@@ -476,7 +476,7 @@
                 if (!cardElement) return;
 
                 const cardId = cardElement.id;
-                
+
                 if (chartInstances[cardId]) {
                     chartInstances[cardId].destroy();
                     delete chartInstances[cardId];
@@ -488,7 +488,7 @@
                     noGraphsPlaceholder.classList.remove('hidden');
                 }
             };
-            
+
             const displayNoDataMessage = (cardElement) => {
                 const chartArea = cardElement.querySelector('.relative');
                 chartArea.innerHTML = `
